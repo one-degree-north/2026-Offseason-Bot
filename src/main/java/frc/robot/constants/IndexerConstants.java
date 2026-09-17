@@ -34,4 +34,3 @@ public final class IndexerConstants {
     public static final double BEAM_BREAK_DEBOUNCE_SECONDS = 0.15;
     public static final boolean BEAM_BREAK_FALSE_WHEN_BROKEN = true;
 }
-

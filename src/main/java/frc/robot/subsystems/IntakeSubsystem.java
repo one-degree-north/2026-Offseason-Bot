@@ -73,7 +73,7 @@ public class IntakeSubsystem extends SubsystemBase {
                 Units.radiansToRotations(m_plant.getAngularPositionRad()) * IntakeConstants.GEAR_RATIO);
         m_motorSim
                 .setRotorVelocity(
-                        Units.radiansToRotations(m_plant.getAngularAccelerationRadPerSecSq()) * IntakeConstants.GEAR_RATIO);
+                        Units.radiansToRotations(m_plant.getAngularAccelerationRadPerSecSq())
+                                * IntakeConstants.GEAR_RATIO);
     }
 }
-

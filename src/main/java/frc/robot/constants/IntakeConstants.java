@@ -13,18 +13,18 @@ package frc.robot.constants;
  * constants are needed, to reduce verbosity.
  */
 public final class IntakeConstants {
-  /* All constants here are guesses and estimates */
+    /* All constants here are guesses and estimates */
 
-  // Motor
-  public static final int BUS_ID = 0;
-  public static final int DEVICE_ID = 0;
-  public static final double MOI = 0.01;
-  public static final double GEAR_RATIO = 5.0;
-  public static final double STATOR_CURRENT_LIMIT = 60.0;
-  public static final double SUPPLY_CURRENT_LIMIT = 40.0;
-  public static final double SUPPLY_CURRENT_LOWER_LIMIT = 30.0;
-  public static final double SUPPLY_CURRENT_LOWER_TIME = 1.0;
-  public static final double INTAKE_VOLTS = 8.0;
-  public static final double EJECT_VOLTS = -8.0;
-  public static final double HOLD_VOLTS = 1.0;
+    // Motor
+    public static final int BUS_ID = 0;
+    public static final int DEVICE_ID = 0;
+    public static final double MOI = 0.01;
+    public static final double GEAR_RATIO = 5.0;
+    public static final double STATOR_CURRENT_LIMIT = 60.0;
+    public static final double SUPPLY_CURRENT_LIMIT = 40.0;
+    public static final double SUPPLY_CURRENT_LOWER_LIMIT = 30.0;
+    public static final double SUPPLY_CURRENT_LOWER_TIME = 1.0;
+    public static final double INTAKE_VOLTS = 8.0;
+    public static final double EJECT_VOLTS = -8.0;
+    public static final double HOLD_VOLTS = 1.0;
 }
