@@ -4,56 +4,96 @@
 
 package frc.robot;
 
-import frc.robot.Constants.OperatorConstants;
-import frc.robot.commands.Autos;
+import frc.robot.constants.AutoConstants;
+import frc.robot.constants.ControllerConstants.ControllerAxis;
+import frc.robot.constants.ControllerConstants.ControllerBumpers;
+import frc.robot.constants.ControllerConstants.ControllerRumble;
+import frc.robot.constants.subsystems.IndexerConstants;
+import frc.robot.constants.subsystems.IntakeConstants;
+import frc.robot.subsystems.IndexerSubsystem;
+import frc.robot.subsystems.IntakeSubsystem;
+import edu.wpi.first.wpilibj.GenericHID.RumbleType;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 
-/**
- * This class is where the bulk of the robot should be declared. Since
- * Command-based is a
- * "declarative" paradigm, very little robot logic should actually be handled in
- * the {@link Robot}
- * periodic methods (other than the scheduler calls). Instead, the structure of
- * the robot (including
- * subsystems, commands, and trigger mappings) should be declared here.
- */
 public class RobotContainer {
     // The robot's subsystems and commands are defined here...
+    private final IntakeSubsystem m_intake = new IntakeSubsystem();
+    private final IndexerSubsystem m_indexer = new IndexerSubsystem();
 
-    // Replace with CommandPS4Controller or CommandJoystick if needed
-    private final CommandXboxController m_driverController = new CommandXboxController(
-            OperatorConstants.kDriverControllerPort);
+    private final CommandXboxController m_driverController = new CommandXboxController(0);
 
-    /**
-     * The container for the robot. Contains subsystems, OI devices, and commands.
-     */
     public RobotContainer() {
         // Configure the trigger bindings
         configureBindings();
+
+        // Configure the default commands
+        configureDefaultCommands();
     }
 
-    /**
-     * Use this method to define your trigger->command mappings. Triggers can be
-     * created via the
-     * {@link Trigger#Trigger(java.util.function.BooleanSupplier)} constructor with
-     * an arbitrary
-     * predicate, or via the named factories in {@link
-     * edu.wpi.first.wpilibj2.command.button.CommandGenericHID}'s subclasses for
-     * {@link
-     * CommandXboxController
-     * Xbox}/{@link edu.wpi.first.wpilibj2.command.button.CommandPS4Controller
-     * PS4} controllers or
-     * {@link edu.wpi.first.wpilibj2.command.button.CommandJoystick Flight
-     * joysticks}.
-     */
+    private void configureDefaultCommands() {
+        m_intake.setDefaultCommand(m_intake.run(() -> {
+            if (m_indexer.hasGamePiece()) {
+                m_intake.runAtVolts(IntakeConstants.HOLD_VOLTS);
+            } else {
+                m_intake.stop();
+            }
+        }));
+    }
+
     private void configureBindings() {
+        // Low-priority trigger must exclude the high-priority trigger
+        Trigger hasGamePiece = new Trigger(m_indexer::hasGamePiece);
+        Trigger manualEjectButton = m_driverController.button(ControllerBumpers.RIGHT_BUMPER);
+        Trigger manualIntakeButton = m_driverController.button(ControllerBumpers.LEFT_BUMPER)
+                .and(manualEjectButton.negate());
+        Trigger smartIntakeRequest = m_driverController
+                .axisGreaterThan(ControllerAxis.LEFT_TRIGGER, 0.5)
+                .and(manualIntakeButton.negate())
+                .and(manualEjectButton.negate())
+                .and(hasGamePiece.negate());
+
+        // Smart intake
+        smartIntakeRequest
+                .whileTrue(m_indexer.intakeCommand()
+                        .deadlineFor(m_intake.runAtVoltsCommand(IntakeConstants.INTAKE_VOLTS)));
+
+        // Manual intake
+        manualIntakeButton
+                .whileTrue(m_intake.runAtVoltsCommand(IntakeConstants.INTAKE_VOLTS)
+                        .alongWith(m_indexer.runAtVoltsCommand(IndexerConstants.INDEX_VOLTS)));
+
+        // Manual eject
+        manualEjectButton
+                .whileTrue(m_intake.runAtVoltsCommand(IntakeConstants.EJECT_VOLTS).alongWith(m_indexer.ejectCommand()));
+
+        // Controller rumble
+        new Trigger(m_indexer::hasGamePiece)
+                .onTrue(rumblePulse());
     }
 
-    /**
-     * Use this to pass the autonomous command to the main {@link Robot} class.
-     *
-     * @return the command to run in autonomous
-     */
+    private void setDriverControllerRumble(double intensity) {
+        m_driverController.setRumble(RumbleType.kLeftRumble, intensity);
+        m_driverController.setRumble(RumbleType.kRightRumble, intensity);
+    }
+
+    private Command rumblePulse() {
+        return Commands.startEnd(
+                () -> setDriverControllerRumble(ControllerRumble.INTENSITY),
+                () -> setDriverControllerRumble(0.0))
+                .withTimeout(ControllerRumble.DURATION_SECONDS)
+                .withName("Driver rumble pulse");
+    }
+
+    public void stopDriverControllerRumble() {
+        setDriverControllerRumble(0.0);
+    }
+
+    public Command getAutonomousCommand() {
+        return Commands.sequence(
+                m_intake.runAtVoltsCommand(IntakeConstants.INTAKE_VOLTS)
+                        .withTimeout(AutoConstants.IntakeAutoConstants.MAX_TIMEOUT_SECONDS));
+    }
 }

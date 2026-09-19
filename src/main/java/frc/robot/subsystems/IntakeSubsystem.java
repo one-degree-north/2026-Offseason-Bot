@@ -14,14 +14,14 @@ import edu.wpi.first.wpilibj.simulation.DCMotorSim;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
-import frc.robot.constants.IntakeConstants;
+import frc.robot.constants.subsystems.IntakeConstants;
 
 public class IntakeSubsystem extends SubsystemBase {
     private final TalonFX m_motor = new TalonFX(IntakeConstants.DEVICE_ID);
 
     private final TalonFXSimState m_motorSim = m_motor.getSimState();
     private final DCMotorSim m_plant = new DCMotorSim(
-            LinearSystemId.createSingleJointedArmSystem(DCMotor.getKrakenX60(1), IntakeConstants.MOI,
+            LinearSystemId.createDCMotorSystem(DCMotor.getKrakenX60(1), IntakeConstants.MOI,
                     IntakeConstants.GEAR_RATIO),
             DCMotor.getKrakenX60(1));
 
@@ -73,7 +73,7 @@ public class IntakeSubsystem extends SubsystemBase {
                 Units.radiansToRotations(m_plant.getAngularPositionRad()) * IntakeConstants.GEAR_RATIO);
         m_motorSim
                 .setRotorVelocity(
-                        Units.radiansToRotations(m_plant.getAngularAccelerationRadPerSecSq())
+                        Units.radiansToRotations(m_plant.getAngularVelocityRadPerSec())
                                 * IntakeConstants.GEAR_RATIO);
     }
 }

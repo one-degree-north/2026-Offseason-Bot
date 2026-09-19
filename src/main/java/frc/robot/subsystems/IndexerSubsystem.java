@@ -20,7 +20,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
-import frc.robot.constants.IndexerConstants;
+import frc.robot.constants.subsystems.IndexerConstants;
 import frc.robot.sensors.BeamBreakSensor;
 
 public class IndexerSubsystem extends SubsystemBase {
@@ -31,14 +31,14 @@ public class IndexerSubsystem extends SubsystemBase {
 
     private final TalonFXSimState m_motorSim = m_motor.getSimState();
     private final DCMotorSim m_plant = new DCMotorSim(
-            LinearSystemId.createSingleJointedArmSystem(DCMotor.getKrakenX60(1),
+            LinearSystemId.createDCMotorSystem(DCMotor.getKrakenX60(1),
                     IndexerConstants.MOI,
                     IndexerConstants.GEAR_RATIO),
             DCMotor.getKrakenX60(1));
 
     private final VoltageOut m_voltageOut = new VoltageOut(0.0);
 
-    private IndexerSubsystem() {
+    public IndexerSubsystem() {
         var cfg = new TalonFXConfiguration();
         cfg.Feedback.SensorToMechanismRatio = IndexerConstants.GEAR_RATIO;
         cfg.MotorOutput.NeutralMode = NeutralModeValue.Brake;
@@ -116,7 +116,7 @@ public class IndexerSubsystem extends SubsystemBase {
                         IndexerConstants.GEAR_RATIO);
         m_motorSim
                 .setRotorVelocity(
-                        Units.radiansToRotations(m_plant.getAngularAccelerationRadPerSecSq()) *
+                        Units.radiansToRotations(m_plant.getAngularVelocityRadPerSec()) *
                                 IndexerConstants.GEAR_RATIO);
 
         boolean simBeamBreakBroken = SmartDashboard.getBoolean("Indexer/BeamBreak/Is broken", false);
