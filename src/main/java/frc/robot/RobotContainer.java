@@ -22,7 +22,7 @@ import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 import frc.robot.constants.ControllerConstants.ControllerAxis;
-import frc.robot.constants.ControllerConstants.ControllerBumpers;
+import frc.robot.constants.ControllerConstants.ControllerButtons;
 import frc.robot.constants.ControllerConstants.ControllerRumble;
 import frc.robot.constants.subsystems.IndexerConstants;
 import frc.robot.constants.subsystems.IntakeConstants;
@@ -49,6 +49,8 @@ public class RobotContainer {
     private final IndexerSubsystem m_indexer = new IndexerSubsystem();
     public final CommandSwerveDrivetrain m_drivetrain = TunerConstants.createDrivetrain();
 
+    private final Telemetry m_logger = new Telemetry(MaxSpeed);
+
     private final CommandXboxController m_driverController = new CommandXboxController(0);
 
     public RobotContainer() {
@@ -68,18 +70,18 @@ public class RobotContainer {
             }
         }));
 
-        m_drivetrain.setDefaultCommand(
-                m_drivetrain
-                        .applyRequest(() -> drive.withVelocityX(-m_driverController.getLeftY() * MaxSpeed)
-                                .withVelocityY(-m_driverController.getLeftX() * MaxSpeed)
-                                .withRotationalRate(-m_driverController.getRightX() * MaxAngularRate)));
+        m_drivetrain.setDefaultCommand(m_drivetrain.applyRequest(
+                () -> drive.withVelocityX(-m_driverController.getRawAxis(ControllerAxis.LEFT_Y) * MaxSpeed)
+                        .withVelocityY(-m_driverController.getRawAxis(ControllerAxis.LEFT_X) * MaxSpeed)
+                        .withRotationalRate(
+                                -m_driverController.getRawAxis(ControllerAxis.RIGHT_X) * MaxAngularRate)));
     }
 
     private void configureBindings() {
         // Low-priority trigger must exclude the high-priority trigger
         Trigger hasGamePiece = new Trigger(m_indexer::hasGamePiece);
-        Trigger manualEjectButton = m_driverController.button(ControllerBumpers.RIGHT_BUMPER);
-        Trigger manualIntakeButton = m_driverController.button(ControllerBumpers.LEFT_BUMPER)
+        Trigger manualEjectButton = m_driverController.button(ControllerButtons.RIGHT_BUMPER);
+        Trigger manualIntakeButton = m_driverController.button(ControllerButtons.LEFT_BUMPER)
                 .and(manualEjectButton.negate());
         Trigger smartIntakeRequest = m_driverController
                 .axisGreaterThan(ControllerAxis.LEFT_TRIGGER, 0.5)
@@ -105,12 +107,13 @@ public class RobotContainer {
         m_driverController.axisGreaterThan(ControllerAxis.RIGHT_TRIGGER, 0.5)
                 .whileTrue(m_drivetrain.applyRequest(() -> {
                     if (!LimelightHelpers.getTV("limelight"))
-                        return aim.withVelocityX(0.0).withVelocityX(0.0).withRotationalRate(0.0);
+                        return aim.withVelocityX(0.0)
+                                .withVelocityY(0.0)
+                                .withRotationalRate(0.0);
                     double fwd = MathUtil.clamp(LimelightHelpers.getTY("limelight") * -0.1, -1.0, 1.0);
                     double rot = MathUtil.clamp(LimelightHelpers.getTX("limelight") * -0.05, -MaxAngularRate,
                             MaxAngularRate);
-                    return aim.withVelocityX(fwd).withVelocityY(-m_driverController.getLeftX() * MaxSpeed)
-                            .withRotationalRate(rot);
+                    return aim.withVelocityX(fwd).withVelocityY(0.0).withRotationalRate(rot);
                 }));
 
         // Controller rumble
@@ -122,21 +125,28 @@ public class RobotContainer {
         RobotModeTriggers.disabled().whileTrue(
                 m_drivetrain.applyRequest(() -> idle).ignoringDisable(true));
 
-        m_driverController.a().whileTrue(m_drivetrain.applyRequest(() -> brake));
-        m_driverController.b().whileTrue(m_drivetrain.applyRequest(() -> point
-                .withModuleDirection(new Rotation2d(-m_driverController.getLeftY(), -m_driverController.getLeftX()))));
+        m_driverController.button(ControllerButtons.A).whileTrue(m_drivetrain.applyRequest(() -> brake));
+        m_driverController.button(ControllerButtons.B).whileTrue(m_drivetrain.applyRequest(() -> point
+                .withModuleDirection(new Rotation2d(-m_driverController.getRawAxis(ControllerAxis.LEFT_Y),
+                        -m_driverController.getRawAxis(ControllerAxis.LEFT_X)))));
 
         // Run SysId routines when holding back/start and X/Y.
         // Note that each routine should be run exactly once in a single log.
-        m_driverController.back().and(m_driverController.y()).whileTrue(m_drivetrain.sysIdDynamic(Direction.kForward));
-        m_driverController.back().and(m_driverController.x()).whileTrue(m_drivetrain.sysIdDynamic(Direction.kReverse));
-        m_driverController.start().and(m_driverController.y())
+        m_driverController.button(ControllerButtons.BACK).and(m_driverController.button(ControllerButtons.Y))
+                .whileTrue(m_drivetrain.sysIdDynamic(Direction.kForward));
+        m_driverController.button(ControllerButtons.BACK).and(m_driverController.button(ControllerButtons.X))
+                .whileTrue(m_drivetrain.sysIdDynamic(Direction.kReverse));
+        m_driverController.button(ControllerButtons.START).and(m_driverController.button(ControllerButtons.Y))
                 .whileTrue(m_drivetrain.sysIdQuasistatic(Direction.kForward));
-        m_driverController.start().and(m_driverController.x())
+        m_driverController.button(ControllerButtons.START).and(m_driverController.button(ControllerButtons.X))
                 .whileTrue(m_drivetrain.sysIdQuasistatic(Direction.kReverse));
 
-        // Reset the field-centric heading on button y press.
-        m_driverController.y().onTrue(m_drivetrain.runOnce(m_drivetrain::seedFieldCentric));
+        // Reset the field-centric heading on the right joystick press.
+        m_driverController.button(ControllerButtons.RIGHT_JOYSTICK)
+                .onTrue(m_drivetrain.runOnce(m_drivetrain::seedFieldCentric));
+
+        /* Register the swerve telemetry */
+        m_drivetrain.registerTelemetry(m_logger::telemeterize);
     }
 
     private void setDriverControllerRumble(double intensity) {
