@@ -18,7 +18,7 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
-import frc.robot.constants.AutoConstants;
+import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 import frc.robot.constants.ControllerConstants.ControllerAxis;
 import frc.robot.constants.ControllerConstants.ControllerBumpers;
 import frc.robot.constants.ControllerConstants.ControllerRumble;
@@ -41,8 +41,8 @@ public class RobotContainer {
     private final SwerveRequest.PointWheelsAt point = new SwerveRequest.PointWheelsAt();
 
     // The robot's subsystems and commands are defined here...
-    // private final IntakeSubsystem m_intake = new IntakeSubsystem();
-    // private final IndexerSubsystem m_indexer = new IndexerSubsystem();
+    private final IntakeSubsystem m_intake = new IntakeSubsystem();
+    private final IndexerSubsystem m_indexer = new IndexerSubsystem();
     public final CommandSwerveDrivetrain m_drivetrain = TunerConstants.createDrivetrain();
 
     private final CommandXboxController m_driverController = new CommandXboxController(0);
@@ -56,13 +56,13 @@ public class RobotContainer {
     }
 
     private void configureDefaultCommands() {
-        // m_intake.setDefaultCommand(m_intake.run(() -> {
-        // if (m_indexer.hasGamePiece()) {
-        // m_intake.runAtVolts(IntakeConstants.HOLD_VOLTS);
-        // } else {
-        // m_intake.stop();
-        // }
-        // }));
+        m_intake.setDefaultCommand(m_intake.run(() -> {
+            if (m_indexer.hasGamePiece()) {
+                m_intake.runAtVolts(IntakeConstants.HOLD_VOLTS);
+            } else {
+                m_intake.stop();
+            }
+        }));
 
         m_drivetrain.setDefaultCommand(
                 m_drivetrain.applyRequest(() -> drive.withVelocityX(-m_driverController.getLeftY() * MaxSpeed)
@@ -72,35 +72,33 @@ public class RobotContainer {
 
     private void configureBindings() {
         // Low-priority trigger must exclude the high-priority trigger
-        // Trigger hasGamePiece = new Trigger(m_indexer::hasGamePiece);
-        // Trigger manualEjectButton =
-        // m_driverController.button(ControllerBumpers.RIGHT_BUMPER);
-        // Trigger manualIntakeButton =
-        // m_driverController.button(ControllerBumpers.LEFT_BUMPER)
-        // .and(manualEjectButton.negate());
-        // Trigger smartIntakeRequest = m_driverController
-        // .axisGreaterThan(ControllerAxis.LEFT_TRIGGER, 0.5)
-        // .and(manualIntakeButton.negate())
-        // .and(manualEjectButton.negate())
-        // .and(hasGamePiece.negate());
+        Trigger hasGamePiece = new Trigger(m_indexer::hasGamePiece);
+        Trigger manualEjectButton = m_driverController.button(ControllerBumpers.RIGHT_BUMPER);
+        Trigger manualIntakeButton = m_driverController.button(ControllerBumpers.LEFT_BUMPER)
+                .and(manualEjectButton.negate());
+        Trigger smartIntakeRequest = m_driverController
+                .axisGreaterThan(ControllerAxis.LEFT_TRIGGER, 0.5)
+                .and(manualIntakeButton.negate())
+                .and(manualEjectButton.negate())
+                .and(hasGamePiece.negate());
 
         // Smart intake
-        // smartIntakeRequest
-        // .whileTrue(m_indexer.intakeCommand()
-        // .deadlineFor(m_intake.runAtVoltsCommand(IntakeConstants.INTAKE_VOLTS)));
+        smartIntakeRequest
+                .whileTrue(m_indexer.intakeCommand()
+                        .deadlineFor(m_intake.runAtVoltsCommand(IntakeConstants.INTAKE_VOLTS)));
 
-        // // Manual intake
-        // manualIntakeButton
-        // .whileTrue(m_intake.runAtVoltsCommand(IntakeConstants.INTAKE_VOLTS)
-        // .alongWith(m_indexer.runAtVoltsCommand(IndexerConstants.INDEX_VOLTS)));
+        // Manual intake
+        manualIntakeButton
+                .whileTrue(m_intake.runAtVoltsCommand(IntakeConstants.INTAKE_VOLTS)
+                        .alongWith(m_indexer.runAtVoltsCommand(IndexerConstants.INDEX_VOLTS)));
 
-        // // Manual eject
-        // manualEjectButton
-        // .whileTrue(m_intake.runAtVoltsCommand(IntakeConstants.EJECT_VOLTS).alongWith(m_indexer.ejectCommand()));
+        // Manual eject
+        manualEjectButton
+                .whileTrue(m_intake.runAtVoltsCommand(IntakeConstants.EJECT_VOLTS).alongWith(m_indexer.ejectCommand()));
 
-        // // Controller rumble
-        // new Trigger(m_indexer::hasGamePiece)
-        // .onTrue(rumblePulse());
+        // Controller rumble
+        new Trigger(m_indexer::hasGamePiece)
+                .onTrue(rumblePulse());
 
         // Idle while the robot is disabled. This ensures the configured
         // neutral mode is applied to the drive motors while disabled.
@@ -114,12 +112,12 @@ public class RobotContainer {
 
         // Run SysId routines when holding back/start and X/Y.
         // Note that each routine should be run exactly once in a single log.
-        // m_driverController.back().and(m_driverController.y()).whileTrue(m_drivetrain.sysIdDynamic(Direction.kForward));
-        // m_driverController.back().and(m_driverController.x()).whileTrue(m_drivetrain.sysIdDynamic(Direction.kReverse));
-        // m_driverController.start().and(m_driverController.y())
-        // .whileTrue(m_drivetrain.sysIdQuasistatic(Direction.kForward));
-        // m_driverController.start().and(m_driverController.x())
-        // .whileTrue(m_drivetrain.sysIdQuasistatic(Direction.kReverse));
+        m_driverController.back().and(m_driverController.y()).whileTrue(m_drivetrain.sysIdDynamic(Direction.kForward));
+        m_driverController.back().and(m_driverController.x()).whileTrue(m_drivetrain.sysIdDynamic(Direction.kReverse));
+        m_driverController.start().and(m_driverController.y())
+                .whileTrue(m_drivetrain.sysIdQuasistatic(Direction.kForward));
+        m_driverController.start().and(m_driverController.x())
+                .whileTrue(m_drivetrain.sysIdQuasistatic(Direction.kReverse));
 
         // Reset the field-centric heading on left bumper press.
         m_driverController.y().onTrue(m_drivetrain.runOnce(m_drivetrain::seedFieldCentric));
@@ -143,9 +141,6 @@ public class RobotContainer {
     }
 
     public Command getAutonomousCommand() {
-        // return Commands.sequence(
-        // m_intake.runAtVoltsCommand(IntakeConstants.INTAKE_VOLTS)
-        // .withTimeout(AutoConstants.IntakeAutoConstants.MAX_TIMEOUT_SECONDS));
         return null;
     }
 }
