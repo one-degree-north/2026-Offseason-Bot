@@ -11,6 +11,8 @@ import static edu.wpi.first.units.Units.RotationsPerSecond;
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
+import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.GenericHID.RumbleType;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -36,6 +38,8 @@ public class RobotContainer {
     private final SwerveRequest.FieldCentric drive = new SwerveRequest.FieldCentric()
             .withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1) // Add a 10% deadband
             .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // Use open-loop control for drive motors
+    private final SwerveRequest.RobotCentric aim = new SwerveRequest.RobotCentric().withDeadband(0.0)
+            .withRotationalDeadband(0.0).withDriveRequestType(DriveRequestType.OpenLoopVoltage);
 
     private final SwerveRequest.SwerveDriveBrake brake = new SwerveRequest.SwerveDriveBrake();
     private final SwerveRequest.PointWheelsAt point = new SwerveRequest.PointWheelsAt();
@@ -65,9 +69,10 @@ public class RobotContainer {
         }));
 
         m_drivetrain.setDefaultCommand(
-                m_drivetrain.applyRequest(() -> drive.withVelocityX(-m_driverController.getLeftY() * MaxSpeed)
-                        .withVelocityY(-m_driverController.getLeftX() * MaxSpeed)
-                        .withRotationalRate(-m_driverController.getRightX() * MaxAngularRate)));
+                m_drivetrain
+                        .applyRequest(() -> drive.withVelocityX(-m_driverController.getLeftY() * MaxSpeed)
+                                .withVelocityY(-m_driverController.getLeftX() * MaxSpeed)
+                                .withRotationalRate(-m_driverController.getRightX() * MaxAngularRate)));
     }
 
     private void configureBindings() {
@@ -96,9 +101,20 @@ public class RobotContainer {
         manualEjectButton
                 .whileTrue(m_intake.runAtVoltsCommand(IntakeConstants.EJECT_VOLTS).alongWith(m_indexer.ejectCommand()));
 
+        // Face the bot toward the AprilTag
+        m_driverController.axisGreaterThan(ControllerAxis.RIGHT_TRIGGER, 0.5)
+                .whileTrue(m_drivetrain.applyRequest(() -> {
+                    if (!LimelightHelpers.getTV("limelight"))
+                        return aim.withVelocityX(0.0).withVelocityX(0.0).withRotationalRate(0.0);
+                    double fwd = MathUtil.clamp(LimelightHelpers.getTY("limelight") * -0.1, -1.0, 1.0);
+                    double rot = MathUtil.clamp(LimelightHelpers.getTX("limelight") * -0.05, -MaxAngularRate,
+                            MaxAngularRate);
+                    return aim.withVelocityX(fwd).withVelocityY(-m_driverController.getLeftX() * MaxSpeed)
+                            .withRotationalRate(rot);
+                }));
+
         // Controller rumble
-        new Trigger(m_indexer::hasGamePiece)
-                .onTrue(rumblePulse());
+        hasGamePiece.onTrue(rumblePulse());
 
         // Idle while the robot is disabled. This ensures the configured
         // neutral mode is applied to the drive motors while disabled.
@@ -119,7 +135,7 @@ public class RobotContainer {
         m_driverController.start().and(m_driverController.x())
                 .whileTrue(m_drivetrain.sysIdQuasistatic(Direction.kReverse));
 
-        // Reset the field-centric heading on left bumper press.
+        // Reset the field-centric heading on button y press.
         m_driverController.y().onTrue(m_drivetrain.runOnce(m_drivetrain::seedFieldCentric));
     }
 
@@ -141,6 +157,9 @@ public class RobotContainer {
     }
 
     public Command getAutonomousCommand() {
-        return null;
+        return Commands.sequence(
+                m_drivetrain.runOnce(() -> {
+                    m_drivetrain.resetPose(new Pose2d(0, 0, new Rotation2d()));
+                }));
     }
 }

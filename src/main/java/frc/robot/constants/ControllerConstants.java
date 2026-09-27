@@ -3,6 +3,7 @@ package frc.robot.constants;
 public class ControllerConstants {
     public static class ControllerAxis {
         public static final int LEFT_TRIGGER = 5;
+        public static final int RIGHT_TRIGGER = 6;
     }
 
     public static class ControllerBumpers {

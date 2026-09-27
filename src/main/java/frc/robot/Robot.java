@@ -4,6 +4,8 @@
 
 package frc.robot;
 
+import edu.wpi.first.math.VecBuilder;
+import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
@@ -52,6 +54,29 @@ public class Robot extends TimedRobot {
         // robot's periodic
         // block in order for anything in the Command-based framework to work.
         CommandScheduler.getInstance().run();
+
+        // 1. Get the current telemetry state from your CTRE Drivetrain
+        var driveState = m_robotContainer.m_drivetrain.getState();
+
+        // 2. Extract rotation and angular velocity
+        double headingDeg = driveState.Pose.getRotation().getDegrees();
+        double omegaRps = Units.radiansToRotations(driveState.Speeds.omegaRadiansPerSecond);
+
+        // 3. Send orientation data to Limelight (replace "limelight" with your camera's
+        // NetworkTables name)
+        LimelightHelpers.SetRobotOrientation("limelight", headingDeg, 0, 0, 0, 0, 0);
+
+        // 4. Retrieve the MegaTag2 bot pose estimate (WPI Blue Coordinate System)
+        var llMeasurement = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("limelight");
+
+        // 5. Filter out unstable measurements (e.g., when spinning rapidly or if no
+        // tags are seen)
+        if (llMeasurement != null && llMeasurement.tagCount > 0 && Math.abs(omegaRps) < 2.0) {
+            // 6. Inject the vision data straight into the CTRE pose estimator
+            m_robotContainer.m_drivetrain.addVisionMeasurement(
+                    llMeasurement.pose, llMeasurement.timestampSeconds,
+                    VecBuilder.fill(0.7, 0.7, 9999999));
+        }
     }
 
     /** This function is called once each time the robot enters Disabled mode. */
