@@ -15,7 +15,7 @@ import frc.robot.constants.subsystems.SlapdownConstants;
 public class SlapdownSubsystem extends SubsystemBase {
     private final TalonFX m_motor = new TalonFX(SlapdownConstants.DEVICE_ID);
     private final MotionMagicVoltage m_positionRequest = new MotionMagicVoltage(0.0);
-    
+
     private double m_target = SlapdownConstants.STOWED_ROTATIONS;
 
     public SlapdownSubsystem() {
@@ -42,7 +42,7 @@ public class SlapdownSubsystem extends SubsystemBase {
         cfg.MotionMagic.MotionMagicCruiseVelocity = SlapdownConstants.MOTION_MAGIC_CRUISE_VELOCITY;
         cfg.MotionMagic.MotionMagicAcceleration = SlapdownConstants.MOTION_MAGIC_ACCELERATION;
 
-        //TODO: add soft limits
+        // TODO: add soft limits
 
         m_motor.getConfigurator().apply(cfg);
 
@@ -51,15 +51,14 @@ public class SlapdownSubsystem extends SubsystemBase {
 
     public Command goToPositionCommand(double rotations) {
         return run(() -> setTarget(rotations))
-            .until(this::atTarget)
-            .withName("Slapdown to " + rotations);
+                .until(this::atTarget)
+                .withName("Slapdown to " + rotations);
     }
 
     public void setTarget(double rotations) {
         m_target = rotations;
         m_motor.setControl(m_positionRequest.withPosition(rotations));
     }
-
 
     public boolean atTarget() {
         return Math.abs(m_motor.getPosition().getValueAsDouble() - m_target) < SlapdownConstants.TOLERANCE_ROTATIONS;

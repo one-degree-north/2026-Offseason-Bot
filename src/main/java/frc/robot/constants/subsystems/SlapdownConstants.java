@@ -28,7 +28,4 @@ public class SlapdownConstants {
 
     public static final double STOWED_ROTATIONS = 0;
     public static final double DEPLOYED_ROTATIONS = 0;
-
-
-    
 }
