@@ -26,13 +26,14 @@ import frc.robot.constants.ControllerConstants.ControllerButtons;
 import frc.robot.constants.ControllerConstants.ControllerRumble;
 import frc.robot.constants.subsystems.IndexerConstants;
 import frc.robot.constants.subsystems.IntakeConstants;
-import frc.robot.generated.TunerConstants;
-import frc.robot.subsystems.CommandSwerveDrivetrain;
+import frc.robot.constants.subsystems.DrivetrainTunerConstants;
+import frc.robot.subsystems.DrivetrainSubsystem;
 import frc.robot.subsystems.IndexerSubsystem;
 import frc.robot.subsystems.IntakeSubsystem;
 
 public class RobotContainer {
-    private double MaxSpeed = 1.0 * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top
+    private double MaxSpeed = 1.0 * DrivetrainTunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts
+                                                                                                  // desired top
     private double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond); // 3/4 of a rotation per
 
     private final SwerveRequest.FieldCentric drive = new SwerveRequest.FieldCentric()
@@ -47,7 +48,7 @@ public class RobotContainer {
     // The robot's subsystems and commands are defined here...
     private final IntakeSubsystem m_intake = new IntakeSubsystem();
     private final IndexerSubsystem m_indexer = new IndexerSubsystem();
-    public final CommandSwerveDrivetrain m_drivetrain = TunerConstants.createDrivetrain();
+    public final DrivetrainSubsystem m_drivetrain = DrivetrainTunerConstants.createDrivetrain();
 
     private final Telemetry m_logger = new Telemetry(MaxSpeed);
 
