@@ -1,4 +1,3 @@
-
 package frc.robot.subsystems;
 
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
@@ -77,5 +76,4 @@ public class SlapdownSubsystem extends SubsystemBase {
         SmartDashboard.putNumber("Slapdown/Position (rot)",
                 m_motor.getPosition().getValueAsDouble());
     }
-
 }
