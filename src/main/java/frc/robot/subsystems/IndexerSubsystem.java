@@ -60,7 +60,7 @@ public class IndexerSubsystem extends SubsystemBase {
     }
 
     public Command runAtVoltsCommand(double volts) {
-        return runEnd(() -> runAtVolts(volts), this::stop).withName("Indexer running at" + volts + "volts");
+        return runEnd(() -> runAtVolts(volts), this::stop).withName("Indexer running at " + volts + " volts");
     }
 
     public void stop() {

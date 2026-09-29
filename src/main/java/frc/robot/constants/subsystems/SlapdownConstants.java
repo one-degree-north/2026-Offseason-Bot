@@ -1,7 +1,6 @@
 package frc.robot.constants.subsystems;
 
 public class SlapdownConstants {
-    public static final String BUS_NAME = "rio"; // roboRIO native CAN bus; use a CANivore name for a separate bus
     public static final int DEVICE_ID = 0;
     public static final double MOI = 0.01;
     public static final double GEAR_RATIO = 5.0;
