@@ -56,7 +56,7 @@ public class Robot extends TimedRobot {
         CommandScheduler.getInstance().run();
 
         // 1. Get the current telemetry state from your CTRE Drivetrain
-        var driveState = m_robotContainer.m_drivetrain.getState();
+        var driveState = m_robotContainer.drivetrain.getState();
 
         // 2. Extract rotation and angular velocity
         double headingDeg = driveState.Pose.getRotation().getDegrees();
@@ -73,7 +73,7 @@ public class Robot extends TimedRobot {
         // tags are seen)
         if (llMeasurement != null && llMeasurement.tagCount > 0 && Math.abs(omegaRps) < 2.0) {
             // 6. Inject the vision data straight into the CTRE pose estimator
-            m_robotContainer.m_drivetrain.addVisionMeasurement(
+            m_robotContainer.drivetrain.addVisionMeasurement(
                     llMeasurement.pose, llMeasurement.timestampSeconds,
                     VecBuilder.fill(0.7, 0.7, 9999999));
         }

@@ -1,6 +1,7 @@
 package frc.robot.subsystems;
 
-import static edu.wpi.first.units.Units.*;
+import static edu.wpi.first.units.Units.Second;
+import static edu.wpi.first.units.Units.Volts;
 
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -10,6 +11,10 @@ import com.ctre.phoenix6.Utils;
 import com.ctre.phoenix6.swerve.SwerveDrivetrainConstants;
 import com.ctre.phoenix6.swerve.SwerveModuleConstants;
 import com.ctre.phoenix6.swerve.SwerveRequest;
+import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.config.PIDConstants;
+import com.pathplanner.lib.config.RobotConfig;
+import com.pathplanner.lib.controllers.PPHolonomicDriveController;
 
 import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.geometry.Pose2d;
@@ -18,10 +23,10 @@ import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
-import edu.wpi.first.wpilibj.smartdashboard.Field2d;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.Notifier;
 import edu.wpi.first.wpilibj.RobotController;
+import edu.wpi.first.wpilibj.smartdashboard.Field2d;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Subsystem;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
@@ -50,6 +55,9 @@ public class DrivetrainSubsystem extends TunerSwerveDrivetrain implements Subsys
     private final SwerveRequest.SysIdSwerveTranslation m_translationCharacterization = new SwerveRequest.SysIdSwerveTranslation();
     private final SwerveRequest.SysIdSwerveSteerGains m_steerCharacterization = new SwerveRequest.SysIdSwerveSteerGains();
     private final SwerveRequest.SysIdSwerveRotation m_rotationCharacterization = new SwerveRequest.SysIdSwerveRotation();
+
+    /* Swerve request used to follow PathPlanner paths */
+    private final SwerveRequest.ApplyRobotSpeeds m_pathPlannerRequest = new SwerveRequest.ApplyRobotSpeeds();
 
     private final Field2d m_field2d = new Field2d();
 
@@ -134,6 +142,9 @@ public class DrivetrainSubsystem extends TunerSwerveDrivetrain implements Subsys
             startSimThread();
         }
 
+        /* Configure PathPlanner */
+        configurePathPlanner();
+
         /* Log the field */
         SmartDashboard.putData(m_field2d);
     }
@@ -161,6 +172,12 @@ public class DrivetrainSubsystem extends TunerSwerveDrivetrain implements Subsys
         if (Utils.isSimulation()) {
             startSimThread();
         }
+
+        /* Configure PathPlanner */
+        configurePathPlanner();
+
+        /* Log the field */
+        SmartDashboard.putData(m_field2d);
     }
 
     /**
@@ -201,6 +218,12 @@ public class DrivetrainSubsystem extends TunerSwerveDrivetrain implements Subsys
         if (Utils.isSimulation()) {
             startSimThread();
         }
+
+        /* Configure PathPlanner */
+        configurePathPlanner();
+
+        /* Log the field */
+        SmartDashboard.putData(m_field2d);
     }
 
     /**
@@ -331,4 +354,34 @@ public class DrivetrainSubsystem extends TunerSwerveDrivetrain implements Subsys
     public Optional<Pose2d> samplePoseAt(double timestampSeconds) {
         return super.samplePoseAt(Utils.fpgaToCurrentTime(timestampSeconds));
     }
+
+    private void configurePathPlanner() {
+        try {
+            // Reads deploy/pathplanner/settings.json (the GUI Robot Settings)
+            RobotConfig config = RobotConfig.fromGUISettings();
+
+            AutoBuilder.configure(
+                    () -> getState().Pose, // Robot pose supplier
+                    this::resetPose, // Resets odometry to the auto start pose
+                    () -> getState().Speeds, // ChassisSpeeds, MUST be robot-relative
+                    (speeds, ff) -> setControl(m_pathPlannerRequest // Drives the robot
+                            .withSpeeds(speeds)
+                            .withWheelForceFeedforwardsX(ff.robotRelativeForcesXNewtons())
+                            .withWheelForceFeedforwardsY(ff.robotRelativeForcesYNewtons())),
+                    new PPHolonomicDriveController(
+                            new PIDConstants(5.0, 0.0, 0.0), // Translation PID
+                            new PIDConstants(5.0, 0.0, 0.0)), // Rotation PID
+                    config,
+                    // Mirror paths on the red alliance (origin stays on blue side)
+                    () -> DriverStation.getAlliance()
+                            .map(alliance -> alliance == DriverStation.Alliance.Red)
+                            .orElse(false),
+                    this // Subsystem requirement
+            );
+        } catch (Exception e) {
+            DriverStation.reportError(
+                    "PathPlanner config failed: " + e.getMessage(), e.getStackTrace());
+        }
+    }
+
 }

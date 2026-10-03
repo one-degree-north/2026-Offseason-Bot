@@ -10,11 +10,13 @@ import static edu.wpi.first.units.Units.RotationsPerSecond;
 
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
+import com.pathplanner.lib.auto.AutoBuilder;
 
 import edu.wpi.first.math.MathUtil;
-import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.GenericHID.RumbleType;
+import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
@@ -24,9 +26,9 @@ import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 import frc.robot.constants.ControllerConstants.ControllerAxis;
 import frc.robot.constants.ControllerConstants.ControllerButtons;
 import frc.robot.constants.ControllerConstants.ControllerRumble;
+import frc.robot.constants.subsystems.DrivetrainTunerConstants;
 import frc.robot.constants.subsystems.IndexerConstants;
 import frc.robot.constants.subsystems.IntakeConstants;
-import frc.robot.constants.subsystems.DrivetrainTunerConstants;
 import frc.robot.subsystems.DrivetrainSubsystem;
 import frc.robot.subsystems.IndexerSubsystem;
 import frc.robot.subsystems.IntakeSubsystem;
@@ -45,14 +47,16 @@ public class RobotContainer {
     private final SwerveRequest.SwerveDriveBrake brake = new SwerveRequest.SwerveDriveBrake();
     private final SwerveRequest.PointWheelsAt point = new SwerveRequest.PointWheelsAt();
 
+    private final SendableChooser<Command> autoChooser;
+
     // The robot's subsystems and commands are defined here...
-    private final IntakeSubsystem m_intake = new IntakeSubsystem();
-    private final IndexerSubsystem m_indexer = new IndexerSubsystem();
-    public final DrivetrainSubsystem m_drivetrain = DrivetrainTunerConstants.createDrivetrain();
+    private final IntakeSubsystem intake = new IntakeSubsystem();
+    private final IndexerSubsystem indexer = new IndexerSubsystem();
+    public final DrivetrainSubsystem drivetrain = DrivetrainTunerConstants.createDrivetrain();
 
-    private final Telemetry m_logger = new Telemetry(MaxSpeed);
+    private final Telemetry logger = new Telemetry(MaxSpeed);
 
-    private final CommandXboxController m_driverController = new CommandXboxController(0);
+    private final CommandXboxController driverController = new CommandXboxController(0);
 
     public RobotContainer() {
         // Configure the trigger bindings
@@ -60,31 +64,34 @@ public class RobotContainer {
 
         // Configure the default commands
         configureDefaultCommands();
+
+        autoChooser = AutoBuilder.buildAutoChooser();
+        SmartDashboard.putData("Auto Chooser", autoChooser);
     }
 
     private void configureDefaultCommands() {
-        m_intake.setDefaultCommand(m_intake.run(() -> {
-            if (m_indexer.hasGamePiece()) {
-                m_intake.runAtVolts(IntakeConstants.HOLD_VOLTS);
+        intake.setDefaultCommand(intake.run(() -> {
+            if (indexer.hasGamePiece()) {
+                intake.runAtVolts(IntakeConstants.HOLD_VOLTS);
             } else {
-                m_intake.stop();
+                intake.stop();
             }
         }));
 
-        m_drivetrain.setDefaultCommand(m_drivetrain.applyRequest(
-                () -> drive.withVelocityX(-m_driverController.getRawAxis(ControllerAxis.LEFT_Y) * MaxSpeed)
-                        .withVelocityY(-m_driverController.getRawAxis(ControllerAxis.LEFT_X) * MaxSpeed)
+        drivetrain.setDefaultCommand(drivetrain.applyRequest(
+                () -> drive.withVelocityX(-driverController.getRawAxis(ControllerAxis.LEFT_Y) * MaxSpeed)
+                        .withVelocityY(-driverController.getRawAxis(ControllerAxis.LEFT_X) * MaxSpeed)
                         .withRotationalRate(
-                                -m_driverController.getRawAxis(ControllerAxis.RIGHT_X) * MaxAngularRate)));
+                                -driverController.getRawAxis(ControllerAxis.RIGHT_X) * MaxAngularRate)));
     }
 
     private void configureBindings() {
         // Low-priority trigger must exclude the high-priority trigger
-        Trigger hasGamePiece = new Trigger(m_indexer::hasGamePiece);
-        Trigger manualEjectButton = m_driverController.button(ControllerButtons.RIGHT_BUMPER);
-        Trigger manualIntakeButton = m_driverController.button(ControllerButtons.LEFT_BUMPER)
+        Trigger hasGamePiece = new Trigger(indexer::hasGamePiece);
+        Trigger manualEjectButton = driverController.button(ControllerButtons.RIGHT_BUMPER);
+        Trigger manualIntakeButton = driverController.button(ControllerButtons.LEFT_BUMPER)
                 .and(manualEjectButton.negate());
-        Trigger smartIntakeRequest = m_driverController
+        Trigger smartIntakeRequest = driverController
                 .axisGreaterThan(ControllerAxis.LEFT_TRIGGER, 0.5)
                 .and(manualIntakeButton.negate())
                 .and(manualEjectButton.negate())
@@ -92,21 +99,21 @@ public class RobotContainer {
 
         // Smart intake
         smartIntakeRequest
-                .whileTrue(m_indexer.intakeCommand()
-                        .deadlineFor(m_intake.runAtVoltsCommand(IntakeConstants.INTAKE_VOLTS)));
+                .whileTrue(indexer.intakeCommand()
+                        .deadlineFor(intake.runAtVoltsCommand(IntakeConstants.INTAKE_VOLTS)));
 
         // Manual intake
         manualIntakeButton
-                .whileTrue(m_intake.runAtVoltsCommand(IntakeConstants.INTAKE_VOLTS)
-                        .alongWith(m_indexer.runAtVoltsCommand(IndexerConstants.INDEX_VOLTS)));
+                .whileTrue(intake.runAtVoltsCommand(IntakeConstants.INTAKE_VOLTS)
+                        .alongWith(indexer.runAtVoltsCommand(IndexerConstants.INDEX_VOLTS)));
 
         // Manual eject
         manualEjectButton
-                .whileTrue(m_intake.runAtVoltsCommand(IntakeConstants.EJECT_VOLTS).alongWith(m_indexer.ejectCommand()));
+                .whileTrue(intake.runAtVoltsCommand(IntakeConstants.EJECT_VOLTS).alongWith(indexer.ejectCommand()));
 
         // Face the bot toward the AprilTag
-        m_driverController.axisGreaterThan(ControllerAxis.RIGHT_TRIGGER, 0.5)
-                .whileTrue(m_drivetrain.applyRequest(() -> {
+        driverController.axisGreaterThan(ControllerAxis.RIGHT_TRIGGER, 0.5)
+                .whileTrue(drivetrain.applyRequest(() -> {
                     if (!LimelightHelpers.getTV("limelight"))
                         return aim.withVelocityX(0.0)
                                 .withVelocityY(0.0)
@@ -124,35 +131,35 @@ public class RobotContainer {
         // neutral mode is applied to the drive motors while disabled.
         final var idle = new SwerveRequest.Idle();
         RobotModeTriggers.disabled().whileTrue(
-                m_drivetrain.applyRequest(() -> idle).ignoringDisable(true));
+                drivetrain.applyRequest(() -> idle).ignoringDisable(true));
 
-        m_driverController.button(ControllerButtons.A).whileTrue(m_drivetrain.applyRequest(() -> brake));
-        m_driverController.button(ControllerButtons.B).whileTrue(m_drivetrain.applyRequest(() -> point
-                .withModuleDirection(new Rotation2d(-m_driverController.getRawAxis(ControllerAxis.LEFT_Y),
-                        -m_driverController.getRawAxis(ControllerAxis.LEFT_X)))));
+        driverController.button(ControllerButtons.A).whileTrue(drivetrain.applyRequest(() -> brake));
+        driverController.button(ControllerButtons.B).whileTrue(drivetrain.applyRequest(() -> point
+                .withModuleDirection(new Rotation2d(-driverController.getRawAxis(ControllerAxis.LEFT_Y),
+                        -driverController.getRawAxis(ControllerAxis.LEFT_X)))));
 
         // Run SysId routines when holding back/start and X/Y.
         // Note that each routine should be run exactly once in a single log.
-        m_driverController.button(ControllerButtons.BACK).and(m_driverController.button(ControllerButtons.Y))
-                .whileTrue(m_drivetrain.sysIdDynamic(Direction.kForward));
-        m_driverController.button(ControllerButtons.BACK).and(m_driverController.button(ControllerButtons.X))
-                .whileTrue(m_drivetrain.sysIdDynamic(Direction.kReverse));
-        m_driverController.button(ControllerButtons.START).and(m_driverController.button(ControllerButtons.Y))
-                .whileTrue(m_drivetrain.sysIdQuasistatic(Direction.kForward));
-        m_driverController.button(ControllerButtons.START).and(m_driverController.button(ControllerButtons.X))
-                .whileTrue(m_drivetrain.sysIdQuasistatic(Direction.kReverse));
+        driverController.button(ControllerButtons.BACK).and(driverController.button(ControllerButtons.Y))
+                .whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
+        driverController.button(ControllerButtons.BACK).and(driverController.button(ControllerButtons.X))
+                .whileTrue(drivetrain.sysIdDynamic(Direction.kReverse));
+        driverController.button(ControllerButtons.START).and(driverController.button(ControllerButtons.Y))
+                .whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
+        driverController.button(ControllerButtons.START).and(driverController.button(ControllerButtons.X))
+                .whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
 
         // Reset the field-centric heading on the right joystick press.
-        m_driverController.button(ControllerButtons.RIGHT_JOYSTICK)
-                .onTrue(m_drivetrain.runOnce(m_drivetrain::seedFieldCentric));
+        driverController.button(ControllerButtons.RIGHT_JOYSTICK)
+                .onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));
 
-        /* Register the swerve telemetry */
-        m_drivetrain.registerTelemetry(m_logger::telemeterize);
+        // Register the swerve telemetry
+        drivetrain.registerTelemetry(logger::telemeterize);
     }
 
     private void setDriverControllerRumble(double intensity) {
-        m_driverController.setRumble(RumbleType.kLeftRumble, intensity);
-        m_driverController.setRumble(RumbleType.kRightRumble, intensity);
+        driverController.setRumble(RumbleType.kLeftRumble, intensity);
+        driverController.setRumble(RumbleType.kRightRumble, intensity);
     }
 
     private Command rumblePulse() {
@@ -168,9 +175,6 @@ public class RobotContainer {
     }
 
     public Command getAutonomousCommand() {
-        return Commands.sequence(
-                m_drivetrain.runOnce(() -> {
-                    m_drivetrain.resetPose(new Pose2d(0, 0, new Rotation2d()));
-                }));
+        return autoChooser.getSelected();
     }
 }
