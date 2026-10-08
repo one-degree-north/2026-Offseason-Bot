@@ -34,147 +34,154 @@ import frc.robot.subsystems.IndexerSubsystem;
 import frc.robot.subsystems.IntakeSubsystem;
 
 public class RobotContainer {
-    private double MaxSpeed = 1.0 * DrivetrainTunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts
-                                                                                                  // desired top
-    private double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond); // 3/4 of a rotation per
+        private double MaxSpeed = 1.0 * DrivetrainTunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts
+                                                                                                      // desired top
+        private double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond); // 3/4 of a rotation per
 
-    private final SwerveRequest.FieldCentric drive = new SwerveRequest.FieldCentric()
-            .withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1) // Add a 10% deadband
-            .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // Use open-loop control for drive motors
-    private final SwerveRequest.RobotCentric aim = new SwerveRequest.RobotCentric().withDeadband(0.0)
-            .withRotationalDeadband(0.0).withDriveRequestType(DriveRequestType.OpenLoopVoltage);
+        private final SwerveRequest.FieldCentric drive = new SwerveRequest.FieldCentric()
+                        .withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1) // Add a 10% deadband
+                        .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // Use open-loop control for drive
+                                                                                 // motors
+        private final SwerveRequest.RobotCentric aim = new SwerveRequest.RobotCentric().withDeadband(0.0)
+                        .withRotationalDeadband(0.0).withDriveRequestType(DriveRequestType.OpenLoopVoltage);
 
-    private final SwerveRequest.SwerveDriveBrake brake = new SwerveRequest.SwerveDriveBrake();
-    private final SwerveRequest.PointWheelsAt point = new SwerveRequest.PointWheelsAt();
+        private final SwerveRequest.SwerveDriveBrake brake = new SwerveRequest.SwerveDriveBrake();
+        private final SwerveRequest.PointWheelsAt point = new SwerveRequest.PointWheelsAt();
 
-    private final SendableChooser<Command> autoChooser;
+        private final SendableChooser<Command> autoChooser;
 
-    // The robot's subsystems and commands are defined here...
-    private final IntakeSubsystem intake = new IntakeSubsystem();
-    private final IndexerSubsystem indexer = new IndexerSubsystem();
-    public final DrivetrainSubsystem drivetrain = DrivetrainTunerConstants.createDrivetrain();
+        // The robot's subsystems and commands are defined here...
+        private final IntakeSubsystem intake = new IntakeSubsystem();
+        private final IndexerSubsystem indexer = new IndexerSubsystem();
+        public final DrivetrainSubsystem drivetrain = DrivetrainTunerConstants.createDrivetrain();
 
-    private final Telemetry logger = new Telemetry(MaxSpeed);
+        private final Telemetry logger = new Telemetry(MaxSpeed);
 
-    private final CommandXboxController driverController = new CommandXboxController(0);
+        private final CommandXboxController driverController = new CommandXboxController(0);
 
-    public RobotContainer() {
-        // Configure the trigger bindings
-        configureBindings();
+        public RobotContainer() {
+                // Configure the trigger bindings
+                configureBindings();
 
-        // Configure the default commands
-        configureDefaultCommands();
+                // Configure the default commands
+                configureDefaultCommands();
 
-        autoChooser = AutoBuilder.buildAutoChooser();
-        SmartDashboard.putData("Auto Chooser", autoChooser);
-    }
+                autoChooser = AutoBuilder.buildAutoChooser();
+                SmartDashboard.putData("Auto Chooser", autoChooser);
+        }
 
-    private void configureDefaultCommands() {
-        intake.setDefaultCommand(intake.run(() -> {
-            if (indexer.hasGamePiece()) {
-                intake.runAtVolts(IntakeConstants.HOLD_VOLTS);
-            } else {
-                intake.stop();
-            }
-        }));
-
-        drivetrain.setDefaultCommand(drivetrain.applyRequest(
-                () -> drive.withVelocityX(-driverController.getRawAxis(ControllerAxis.LEFT_Y) * MaxSpeed)
-                        .withVelocityY(-driverController.getRawAxis(ControllerAxis.LEFT_X) * MaxSpeed)
-                        .withRotationalRate(
-                                -driverController.getRawAxis(ControllerAxis.RIGHT_X) * MaxAngularRate)));
-    }
-
-    private void configureBindings() {
-        // Low-priority trigger must exclude the high-priority trigger
-        Trigger hasGamePiece = new Trigger(indexer::hasGamePiece);
-        Trigger manualEjectButton = driverController.button(ControllerButtons.RIGHT_BUMPER);
-        Trigger manualIntakeButton = driverController.button(ControllerButtons.LEFT_BUMPER)
-                .and(manualEjectButton.negate());
-        Trigger smartIntakeRequest = driverController
-                .axisGreaterThan(ControllerAxis.LEFT_TRIGGER, 0.5)
-                .and(manualIntakeButton.negate())
-                .and(manualEjectButton.negate())
-                .and(hasGamePiece.negate());
-
-        // Smart intake
-        smartIntakeRequest
-                .whileTrue(indexer.intakeCommand()
-                        .deadlineFor(intake.runAtVoltsCommand(IntakeConstants.INTAKE_VOLTS)));
-
-        // Manual intake
-        manualIntakeButton
-                .whileTrue(intake.runAtVoltsCommand(IntakeConstants.INTAKE_VOLTS)
-                        .alongWith(indexer.runAtVoltsCommand(IndexerConstants.INDEX_VOLTS)));
-
-        // Manual eject
-        manualEjectButton
-                .whileTrue(intake.runAtVoltsCommand(IntakeConstants.EJECT_VOLTS).alongWith(indexer.ejectCommand()));
-
-        // Face the bot toward the AprilTag
-        driverController.axisGreaterThan(ControllerAxis.RIGHT_TRIGGER, 0.5)
-                .whileTrue(drivetrain.applyRequest(() -> {
-                    if (!LimelightHelpers.getTV("limelight"))
-                        return aim.withVelocityX(0.0)
-                                .withVelocityY(0.0)
-                                .withRotationalRate(0.0);
-                    double fwd = MathUtil.clamp(LimelightHelpers.getTY("limelight") * -0.1, -1.0, 1.0);
-                    double rot = MathUtil.clamp(LimelightHelpers.getTX("limelight") * -0.05, -MaxAngularRate,
-                            MaxAngularRate);
-                    return aim.withVelocityX(fwd).withVelocityY(0.0).withRotationalRate(rot);
+        private void configureDefaultCommands() {
+                intake.setDefaultCommand(intake.run(() -> {
+                        if (indexer.hasGamePiece()) {
+                                intake.runAtVolts(IntakeConstants.HOLD_VOLTS);
+                        } else {
+                                intake.stop();
+                        }
                 }));
 
-        // Controller rumble
-        hasGamePiece.onTrue(rumblePulse());
+                drivetrain.setDefaultCommand(drivetrain.applyRequest(
+                                () -> drive.withVelocityX(
+                                                -driverController.getRawAxis(ControllerAxis.LEFT_Y) * MaxSpeed)
+                                                .withVelocityY(-driverController.getRawAxis(ControllerAxis.LEFT_X)
+                                                                * MaxSpeed)
+                                                .withRotationalRate(
+                                                                -driverController.getRawAxis(ControllerAxis.RIGHT_X)
+                                                                                * MaxAngularRate)));
+        }
 
-        // Idle while the robot is disabled. This ensures the configured
-        // neutral mode is applied to the drive motors while disabled.
-        final var idle = new SwerveRequest.Idle();
-        RobotModeTriggers.disabled().whileTrue(
-                drivetrain.applyRequest(() -> idle).ignoringDisable(true));
+        private void configureBindings() {
+                // Low-priority trigger must exclude the high-priority trigger
+                Trigger hasGamePiece = new Trigger(indexer::hasGamePiece);
+                Trigger manualEjectButton = driverController.button(ControllerButtons.RIGHT_BUMPER);
+                Trigger manualIntakeButton = driverController.button(ControllerButtons.LEFT_BUMPER)
+                                .and(manualEjectButton.negate());
+                Trigger smartIntakeRequest = driverController
+                                .axisGreaterThan(ControllerAxis.LEFT_TRIGGER, 0.5)
+                                .and(manualIntakeButton.negate())
+                                .and(manualEjectButton.negate())
+                                .and(hasGamePiece.negate());
 
-        driverController.button(ControllerButtons.A).whileTrue(drivetrain.applyRequest(() -> brake));
-        driverController.button(ControllerButtons.B).whileTrue(drivetrain.applyRequest(() -> point
-                .withModuleDirection(new Rotation2d(-driverController.getRawAxis(ControllerAxis.LEFT_Y),
-                        -driverController.getRawAxis(ControllerAxis.LEFT_X)))));
+                // Smart intake
+                smartIntakeRequest
+                                .whileTrue(indexer.intakeCommand()
+                                                .deadlineFor(intake.runAtVoltsCommand(IntakeConstants.INTAKE_VOLTS)));
 
-        // Run SysId routines when holding back/start and X/Y.
-        // Note that each routine should be run exactly once in a single log.
-        driverController.button(ControllerButtons.BACK).and(driverController.button(ControllerButtons.Y))
-                .whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
-        driverController.button(ControllerButtons.BACK).and(driverController.button(ControllerButtons.X))
-                .whileTrue(drivetrain.sysIdDynamic(Direction.kReverse));
-        driverController.button(ControllerButtons.START).and(driverController.button(ControllerButtons.Y))
-                .whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
-        driverController.button(ControllerButtons.START).and(driverController.button(ControllerButtons.X))
-                .whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
+                // Manual intake
+                manualIntakeButton
+                                .whileTrue(intake.runAtVoltsCommand(IntakeConstants.INTAKE_VOLTS)
+                                                .alongWith(indexer.runAtVoltsCommand(IndexerConstants.INDEX_VOLTS)));
 
-        // Reset the field-centric heading on the right joystick press.
-        driverController.button(ControllerButtons.RIGHT_JOYSTICK)
-                .onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));
+                // Manual eject
+                manualEjectButton
+                                .whileTrue(intake.runAtVoltsCommand(IntakeConstants.EJECT_VOLTS)
+                                                .alongWith(indexer.ejectCommand()));
 
-        // Register the swerve telemetry
-        drivetrain.registerTelemetry(logger::telemeterize);
-    }
+                // Face the bot toward the AprilTag
+                driverController.axisGreaterThan(ControllerAxis.RIGHT_TRIGGER, 0.5)
+                                .whileTrue(drivetrain.applyRequest(() -> {
+                                        if (!LimelightHelpers.getTV("limelight"))
+                                                return aim.withVelocityX(0.0)
+                                                                .withVelocityY(0.0)
+                                                                .withRotationalRate(0.0);
+                                        double fwd = MathUtil.clamp(LimelightHelpers.getTY("limelight") * -0.1, -1.0,
+                                                        1.0);
+                                        double rot = MathUtil.clamp(LimelightHelpers.getTX("limelight") * -0.05,
+                                                        -MaxAngularRate,
+                                                        MaxAngularRate);
+                                        return aim.withVelocityX(fwd).withVelocityY(0.0).withRotationalRate(rot);
+                                }));
 
-    private void setDriverControllerRumble(double intensity) {
-        driverController.setRumble(RumbleType.kLeftRumble, intensity);
-        driverController.setRumble(RumbleType.kRightRumble, intensity);
-    }
+                // Controller rumble
+                hasGamePiece.onTrue(rumblePulse());
 
-    private Command rumblePulse() {
-        return Commands.startEnd(
-                () -> setDriverControllerRumble(ControllerRumble.INTENSITY),
-                () -> setDriverControllerRumble(0.0))
-                .withTimeout(ControllerRumble.DURATION_SECONDS)
-                .withName("Driver rumble pulse");
-    }
+                // Idle while the robot is disabled. This ensures the configured
+                // neutral mode is applied to the drive motors while disabled.
+                final var idle = new SwerveRequest.Idle();
+                RobotModeTriggers.disabled().whileTrue(
+                                drivetrain.applyRequest(() -> idle).ignoringDisable(true));
 
-    public void stopDriverControllerRumble() {
-        setDriverControllerRumble(0.0);
-    }
+                driverController.button(ControllerButtons.A).whileTrue(drivetrain.applyRequest(() -> brake));
+                driverController.button(ControllerButtons.B).whileTrue(drivetrain.applyRequest(() -> point
+                                .withModuleDirection(new Rotation2d(-driverController.getRawAxis(ControllerAxis.LEFT_Y),
+                                                -driverController.getRawAxis(ControllerAxis.LEFT_X)))));
 
-    public Command getAutonomousCommand() {
-        return autoChooser.getSelected();
-    }
+                // Run SysId routines when holding back/start and X/Y.
+                // Note that each routine should be run exactly once in a single log.
+                driverController.button(ControllerButtons.BACK).and(driverController.button(ControllerButtons.Y))
+                                .whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
+                driverController.button(ControllerButtons.BACK).and(driverController.button(ControllerButtons.X))
+                                .whileTrue(drivetrain.sysIdDynamic(Direction.kReverse));
+                driverController.button(ControllerButtons.START).and(driverController.button(ControllerButtons.Y))
+                                .whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
+                driverController.button(ControllerButtons.START).and(driverController.button(ControllerButtons.X))
+                                .whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
+
+                // Reset the field-centric heading on the right joystick press.
+                driverController.button(ControllerButtons.RIGHT_JOYSTICK)
+                                .onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));
+
+                // Register the swerve telemetry
+                drivetrain.registerTelemetry(logger::telemeterize);
+        }
+
+        private void setDriverControllerRumble(double intensity) {
+                driverController.setRumble(RumbleType.kLeftRumble, intensity);
+                driverController.setRumble(RumbleType.kRightRumble, intensity);
+        }
+
+        private Command rumblePulse() {
+                return Commands.startEnd(
+                                () -> setDriverControllerRumble(ControllerRumble.INTENSITY),
+                                () -> setDriverControllerRumble(0.0))
+                                .withTimeout(ControllerRumble.DURATION_SECONDS)
+                                .withName("Driver rumble pulse");
+        }
+
+        public void stopDriverControllerRumble() {
+                setDriverControllerRumble(0.0);
+        }
+
+        public Command getAutonomousCommand() {
+                return autoChooser.getSelected();
+        }
 }
