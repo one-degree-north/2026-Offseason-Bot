@@ -58,5 +58,13 @@
     "edu.wpi.first.math.**.struct.*"
   ],
   "java.dependency.enableDependencyCheckup": false,
-  "cSpell.words": ["deadband", "offseason", "Slapdown", "telemeterize"]
+  "cSpell.words": [
+    "apriltag",
+    "deadband",
+    "Fiducials",
+    "multitag",
+    "offseason",
+    "Slapdown",
+    "telemeterize"
+  ]
 }
