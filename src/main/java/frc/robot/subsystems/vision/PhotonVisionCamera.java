@@ -14,20 +14,46 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Transform3d;
 import frc.robot.constants.subsystems.VisionConstants;
 
+/**
+ * VisionCamera utilizing PhotonVision hardware and pose estimation
+ */
 public class PhotonVisionCamera extends VisionCamera {
+
+    // PhotonCamera camera instance
     private final PhotonCamera camera;
+
+    // PhotonPoseEstimator used to estimate field-relative pose
     private final PhotonPoseEstimator estimator;
 
+    /**
+     * Constructor
+     * 
+     * @param name   name of the camera
+     * @param offset robot-to-camera offset
+     * @param layout AprilTag field layout
+     */
     public PhotonVisionCamera(String name, Transform3d offset, AprilTagFieldLayout layout) {
         super(name, offset, layout);
         camera = new PhotonCamera(name);
         estimator = new PhotonPoseEstimator(layout, offset);
     }
 
+    /**
+     * Constructor
+     * 
+     * @param name   name of the camera
+     * @param offset robot-to-camera offset
+     */
     public PhotonVisionCamera(String name, Transform3d offset) {
         this(name, offset, VisionConstants.TAG_LAYOUT);
     }
 
+    /**
+     * Updates the current pose estimate with unread camera pipeline results. This
+     * method should be called every periodic.
+     * 
+     * @return a list of new PoseObservation instances calculated
+     */
     @Override
     public List<PoseObservation> update() {
         List<PoseObservation> poseObservations = new ArrayList<>();
@@ -53,6 +79,11 @@ public class PhotonVisionCamera extends VisionCamera {
         return poseObservations;
     }
 
+    /**
+     * Checks whether camera is connected to the robot.
+     * 
+     * @return true if camera is connected, false if disconnected
+     */
     @Override
     public boolean isConnected() {
         return camera.isConnected();
