@@ -36,6 +36,10 @@ public abstract class VisionCamera {
         MEGA_TAG_2
     }
 
+    private final double trustFactor;
+
+    /** Multiplier on this camera's std devs. 1.0 = normal; larger = trust less. */
+
     /**
      * PoseObservation record
      * 
@@ -49,20 +53,26 @@ public abstract class VisionCamera {
      */
     public record PoseObservation(
             Pose2d pose, double timestamp, int tagCount, double averageTagDistance, double ambiguity, PoseType type) {
-    };
+    }
 
     /**
      * Constructor
      * 
-     * @param name   name of the camera
-     * @param offset robot-to-camera offset
-     * @param layout AprilTag field layout
+     * @param name        name of the camera
+     * @param offset      robot-to-camera offset
+     * @param layout      AprilTag field layout
+     * @param trustFactor
      */
-    public VisionCamera(String name, Transform3d offset, AprilTagFieldLayout layout) {
+    public VisionCamera(String name, Transform3d offset, AprilTagFieldLayout layout, double trustFactor) {
         this.name = name;
         this.offset = offset;
         this.fieldLayout = layout;
-    };
+        this.trustFactor = trustFactor;
+    }
+
+    public double getTrustFactor() {
+        return trustFactor;
+    }
 
     /**
      * Get the camera name

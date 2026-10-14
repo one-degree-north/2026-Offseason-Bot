@@ -5,14 +5,14 @@ import java.util.List;
 
 import org.photonvision.PhotonCamera;
 import org.photonvision.PhotonPoseEstimator;
-import org.photonvision.PhotonPoseEstimator.PoseStrategy;
 import org.photonvision.targeting.PhotonPipelineResult;
 import org.photonvision.targeting.PhotonTrackedTarget;
 
 import edu.wpi.first.apriltag.AprilTagFieldLayout;
-import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Transform3d;
 import frc.robot.constants.subsystems.VisionConstants;
+import org.photonvision.EstimatedRobotPose;
+import java.util.Optional;
 
 /**
  * VisionCamera utilizing PhotonVision hardware and pose estimation
@@ -32,8 +32,8 @@ public class PhotonVisionCamera extends VisionCamera {
      * @param offset robot-to-camera offset
      * @param layout AprilTag field layout
      */
-    public PhotonVisionCamera(String name, Transform3d offset, AprilTagFieldLayout layout) {
-        super(name, offset, layout);
+    public PhotonVisionCamera(String name, Transform3d offset, AprilTagFieldLayout layout, double trustFactor) {
+        super(name, offset, layout, trustFactor);
         camera = new PhotonCamera(name);
         estimator = new PhotonPoseEstimator(layout, offset);
     }
@@ -44,8 +44,8 @@ public class PhotonVisionCamera extends VisionCamera {
      * @param name   name of the camera
      * @param offset robot-to-camera offset
      */
-    public PhotonVisionCamera(String name, Transform3d offset) {
-        this(name, offset, VisionConstants.TAG_LAYOUT);
+    public PhotonVisionCamera(String name, Transform3d offset, double trustFactor) {
+        this(name, offset, VisionConstants.TAG_LAYOUT, trustFactor);
     }
 
     /**
@@ -56,27 +56,42 @@ public class PhotonVisionCamera extends VisionCamera {
      */
     @Override
     public List<PoseObservation> update() {
-        List<PoseObservation> poseObservations = new ArrayList<>();
-        List<PhotonPipelineResult> cameraResults = camera.getAllUnreadResults();
-        for (PhotonPipelineResult cameraResult : cameraResults) {
-            var poseEstimationResult = estimator.estimateCoprocMultiTagPose(cameraResult);
-            var estimatedPose = poseEstimationResult.get();
-            var targets = estimatedPose.targetsUsed;
+        List<PoseObservation> observations = new ArrayList<>();
+        for (PhotonPipelineResult result : camera.getAllUnreadResults()) {
+            // 1. Try the best method first: all visible tags solved together.
+            PoseType type = PoseType.PHOTON_MULTI_TAG;
+            Optional<EstimatedRobotPose> estimate = estimator.estimateCoprocMultiTagPose(result);
 
-            double totalTagDistance = 0.0;
-            for (PhotonTrackedTarget target : targets) {
-                totalTagDistance += target.getBestCameraToTarget().getTranslation().getNorm();
+            // 2. Not enough tags for multi-tag? Fall back to the single clearest tag.
+            if (estimate.isEmpty()) {
+                type = PoseType.PHOTON_SINGLE_TAG;
+                estimate = estimator.estimateLowestAmbiguityPose(result);
+            }
+            // 3. Still nothing means no usable tags in this frame. Skip it.
+            if (estimate.isEmpty() || estimate.get().targetsUsed.isEmpty()) {
+                continue;
             }
 
-            poseObservations.add(new PoseObservation(
-                    estimatedPose.estimatedPose.toPose2d(),
-                    estimatedPose.timestampSeconds,
+            EstimatedRobotPose est = estimate.get();
+            List<PhotonTrackedTarget> targets = est.targetsUsed;
+            double totalDistance = 0.0;
+
+            for (PhotonTrackedTarget target : targets) {
+                totalDistance += target.getBestCameraToTarget().getTranslation().getNorm();
+            }
+
+            observations.add(new PoseObservation(
+                    est.estimatedPose.toPose2d(),
+                    est.timestampSeconds,
                     targets.size(),
-                    targets.size() > 0 ? totalTagDistance / targets.size() : 0.0,
+                    totalDistance / targets.size(),
                     targets.get(0).getPoseAmbiguity(),
-                    targets.size() > 1 ? PoseType.PHOTON_MULTI_TAG : PoseType.PHOTON_SINGLE_TAG));
+                    type));
+
         }
-        return poseObservations;
+
+        return observations;
+
     }
 
     /**
