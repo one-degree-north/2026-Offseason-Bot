@@ -27,16 +27,17 @@ public class Vision extends SubsystemBase {
         void accept(Pose2d pose, double timestampSeconds, Matrix<N3, N1> stdDevs);
     }
 
-    public enum Vedict {
+    public enum Verdict {
         ACCEPTED,
         NO_TAGS,
         OUTSIDE_FIELD,
         TOO_FAR,
-        SPINNING_TOO_FAST
+        SPINNING_TOO_FAST,
+        TOO_AMBIGUOUS
     }
 
     private final VisionConsumer consumer;
-    private final DoubleSupplier yawRateRotPerseconds;
+    private final DoubleSupplier yawRateRotPerSec;
     private final List<VisionCamera> cameras;
 
     private final List<Alert> disconnectedAlerts = new ArrayList<>();
@@ -50,7 +51,6 @@ public class Vision extends SubsystemBase {
         this.consumer = consumer;
         this.yawRateRotPerSec = yawRateRotPerSec;
         this.cameras = List.of(cameras);
-        // Telemetry and simulation setup are added in Steps 6 and 8.
     }
 
     @Override
@@ -59,11 +59,51 @@ public class Vision extends SubsystemBase {
     }
 
     static Verdict checkObservation(PoseObservation observation, double yawRateRotPerSec) {
+        // Rule 1: a pose with no tags behind it is meaningless
+        if (observation.tagCount() == 0) {
+            return Verdict.NO_TAGS;
+        }
+
+        // Rule 2: the robot can't be outside the field
+        Pose2d pose = observation.pose();
+        double fieldLength = VisionConstants.TAG_LAYOUT.getFieldLength();
+        double fieldWidth = VisionConstants.TAG_LAYOUT.getFieldWidth();
+        if (pose.getX() < 0.0 || pose.getY() > fieldWidth || pose.getX() > fieldLength || pose.getY() < 0.0) {
+            return Verdict.OUTSIDE_FIELD;
+        }
+
+        // Rule 3: single-tag PhotonVision pose too ambiguous
+        if (observation.type() == PoseType.PHOTON_SINGLE_TAG
+                && observation.ambiguity() > VisionConstants.MAX_AMBIGUITY) {
+            return Verdict.TOO_AMBIGUOUS;
+        }
+
+        // Rule 4: one far-away tag is too inaccurate
+        if (observation.tagCount() == 1
+                && observation.averageTagDistance() > VisionConstants.MAX_SINGLE_TAG_DISTANCE_METERS) {
+            return Verdict.TOO_FAR;
+        }
+
+        // Rule 5: MegaTag2 goes wrong while spinning fast (its heading input is stale)
+        if (observation.type() == PoseType.MEGA_TAG_2
+                && Math.abs(yawRateRotPerSec) > VisionConstants.MAX_YAW_RATE_ROT_PER_SEC) {
+            return Verdict.SPINNING_TOO_FAST;
+        }
+
         return Verdict.ACCEPTED;
     }
 
     static Matrix<N3, N1> computeStdDevs(PoseObservation observation, double trustFactor) {
-        return VecBuilder.fill(1, 1, 1);
-    }
+        double distance = Math.max(observation.averageTagDistance(), VisionConstants.MIN_TAG_DISTANCE_METERS);
+        double factor = (distance * distance) / observation.tagCount() * trustFactor;
+        double linearStdDev = VisionConstants.LINEAR_STD_DEV_BASELINE_METERS * factor;
+        double angularStdDev = VisionConstants.ANGULAR_STD_DEV_BASELINE_RADIANS * factor;
 
+        if (observation.type() == PoseType.MEGA_TAG_2) {
+            linearStdDev *= VisionConstants.MEGATAG2_LINEAR_FACTOR;
+            angularStdDev = VisionConstants.IGNORE_STD_DEV;
+        }
+
+        return VecBuilder.fill(linearStdDev, linearStdDev, angularStdDev);
+    }
 }
