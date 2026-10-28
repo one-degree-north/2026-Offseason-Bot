@@ -5,6 +5,9 @@ import java.util.List;
 
 import org.photonvision.PhotonCamera;
 import org.photonvision.PhotonPoseEstimator;
+import org.photonvision.simulation.PhotonCameraSim;
+import org.photonvision.simulation.SimCameraProperties;
+import org.photonvision.simulation.VisionSystemSim;
 import org.photonvision.targeting.PhotonPipelineResult;
 import org.photonvision.targeting.PhotonTrackedTarget;
 
@@ -13,6 +16,8 @@ import edu.wpi.first.math.geometry.Transform3d;
 import frc.robot.constants.subsystems.VisionConstants;
 import org.photonvision.EstimatedRobotPose;
 import java.util.Optional;
+import org.photonvision.simulation;
+import edu.wpi.first.math.geometry.Rotation2d;
 
 /**
  * VisionCamera utilizing PhotonVision hardware and pose estimation
@@ -102,5 +107,18 @@ public class PhotonVisionCamera extends VisionCamera {
     @Override
     public boolean isConnected() {
         return camera.isConnected();
+    }
+    
+    @Override
+    public void addToSimulation(VisionSystem sim){
+        SimCameraProperties properties = new SimCameraProperties();
+        properties.setCalibration(960, 720, Rotation2d.fromDegrees(90)); // resolution and field of view
+        properties.setCalibError(0.35, 0.10); // realistic pixel noise
+        properties.setFPS(15);
+        properties.setAvgLatencyMs(50);
+        properties.setLatencyStdDevMs(15);
+        PhotonCameraSim cameraSim = new PhotonCameraSim(camera, properties);
+        cameraSim.enableDrawWireframe(true);
+        sim.addCamera(cameraSim, getOffset());
     }
 }

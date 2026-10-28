@@ -41,7 +41,7 @@ public class Vision extends SubsystemBase {
     private final List<VisionCamera> cameras;
 
     private final List<Alert> disconnectedAlerts = new ArrayList<>();
-    private final List<StructArrayPublisher<Pose2d>> accepted = new ArrayList<>();
+    private final List<StructArrayPublisher<Pose2d>> acceptedPublishers = new ArrayList<>();
     private final List<StructArrayPublisher<Pose2d>> rejectedPublishers = new ArrayList<>();
     private final List<StringPublisher> verdictPublishers = new ArrayList<>();
 
@@ -51,11 +51,70 @@ public class Vision extends SubsystemBase {
         this.consumer = consumer;
         this.yawRateRotPerSec = yawRateRotPerSec;
         this.cameras = List.of(cameras);
+
+        NetworkTable table = NetworkTableInstance.getDefault().getTable("Vision");
+        for (VisionCamera camera : this.cameras) {
+            String name = camera.getName();
+            disconnectedAlerts.add(new Alert(
+                    "Vision camera '" + name + "' is disconnected", AlertType.kWarning));
+            acceptedPublishers.add(
+                    table.getStructArrayTopic(name + "/AcceptedPoses", Pose2d.struct).publish());
+            rejectedPublishers.add(
+                    table.getStructArrayTopic(name + "/RejectedPoses", Pose2d.struct).publish());
+            verdictPublishers.add(
+                    table.getStringTopic(name + "/LastVerdict").publish());
+        }
+
+        if (RobotBase.isSimulation()) {
+            visionSim = new VisionSystemSim("main");
+            visionSim.addAprilTags(VisionConstants.TAG_LAYOUT);
+            for (VisionCamera camera : this.cameras) {
+                camera.addToSimulation(visionSim);
+            }
+        }
+    }
+
+    /**
+     * Simulation only: tell the vision simulator where the robot REALLY is,
+     * so it can render what each camera would see from there.
+     */
+    public void updateSimulation(Pose2d truePose) {
+        if (visionSim != null) {
+            visionSim.update(truePose);
+        }
     }
 
     @Override
     public void periodic() {
+        double yawRate = yawRateRotPerSec.getAsDouble();
 
+        for (int i = 0; i < cameras.size(); i++) {
+            VisionCamera camera = cameras.get(i);
+
+            // Warn the drive team if this camera stops responding.
+            disconnectedAlerts.get(i).set(!camera.isConnected());
+            List<Pose2d> accepted = new ArrayList<>();
+            List<Pose2d> rejected = new ArrayList<>();
+
+            // update() returns only NEW observations since last loop (maybe none).
+            for (PoseObservation observation : camera.update()) {
+                Verdict verdict = checkObservation(observation, yawRate);
+                verdictPublishers.get(i).set(verdict.name());
+                if (verdict != Verdict.ACCEPTED) {
+                    rejected.add(observation.pose());
+                    continue; // never send rejected measurements
+                }
+                accepted.add(observation.pose());
+                consumer.accept(
+                        observation.pose(),
+                        observation.timestamp(), // when the photo was taken, NOT "now"
+                        computeStdDevs(observation, camera.getTrustFactor()));
+
+            }
+
+            acceptedPublishers.get(i).set(accepted.toArray(new Pose2d[0]));
+            rejectedPublishers.get(i).set(rejected.toArray(new Pose2d[0]));
+        }
     }
 
     static Verdict checkObservation(PoseObservation observation, double yawRateRotPerSec) {
@@ -106,4 +165,5 @@ public class Vision extends SubsystemBase {
 
         return VecBuilder.fill(linearStdDev, linearStdDev, angularStdDev);
     }
+
 }

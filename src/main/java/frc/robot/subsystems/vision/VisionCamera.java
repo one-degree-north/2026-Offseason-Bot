@@ -2,6 +2,8 @@ package frc.robot.subsystems.vision;
 
 import java.util.List;
 
+import org.photonvision.simulation.VisionSystemSim;
+
 import edu.wpi.first.apriltag.AprilTagFieldLayout;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Transform3d;
@@ -114,4 +116,7 @@ public abstract class VisionCamera {
      * @return true if the camera is connected, false otherwise
      */
     public abstract boolean isConnected();
+
+    public void addToSimulation(VisionSystemSim sim) {}
 }
+

@@ -13,8 +13,15 @@ import com.ctre.phoenix6.swerve.SwerveRequest;
 import com.pathplanner.lib.auto.AutoBuilder;
 
 import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Transform2d;
+import edu.wpi.first.math.geometry.Twist2d;
+import edu.wpi.first.math.util.Units;
+import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.wpilibj.GenericHID.RumbleType;
+import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -29,9 +36,13 @@ import frc.robot.constants.ControllerConstants.ControllerRumble;
 import frc.robot.constants.subsystems.DrivetrainTunerConstants;
 import frc.robot.constants.subsystems.IndexerConstants;
 import frc.robot.constants.subsystems.IntakeConstants;
+import frc.robot.constants.subsystems.VisionConstants;
 import frc.robot.subsystems.DrivetrainSubsystem;
 import frc.robot.subsystems.IndexerSubsystem;
 import frc.robot.subsystems.IntakeSubsystem;
+import frc.robot.subsystems.vision.LimelightCamera;
+import frc.robot.subsystems.vision.PhotonVisionCamera;
+import frc.robot.subsystems.vision.Vision;
 
 public class RobotContainer {
         private double MaxSpeed = 1.0 * DrivetrainTunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts
@@ -55,6 +66,19 @@ public class RobotContainer {
         private final IndexerSubsystem indexer = new IndexerSubsystem();
         public final DrivetrainSubsystem drivetrain = DrivetrainTunerConstants.createDrivetrain();
 
+        private final Vision vision = new Vision(
+                        drivetrain::addVisionMeasurement,
+                        () -> Units.radiansToRotations(drivetrain.getState().Speeds.omegaRadiansPerSecond),
+                        new PhotonVisionCamera(
+                                        VisionConstants.CAMERA_1_NAME,
+                                        VisionConstants.CAM_1_OFFSET,
+                                        VisionConstants.CAM_1_TRUST_FACTOR),
+                        new LimelightCamera(
+                                        VisionConstants.CAMERA_2_NAME,
+                                        VisionConstants.CAM_2_OFFSET,
+                                        () -> drivetrain.getState().Pose.getRotation().getDegrees(),
+                                        VisionConstants.CAM_2_TRUST_FACTOR));
+
         private final Telemetry logger = new Telemetry(MaxSpeed);
 
         private final CommandXboxController driverController = new CommandXboxController(0);
@@ -68,6 +92,19 @@ public class RobotContainer {
 
                 autoChooser = AutoBuilder.buildAutoChooser();
                 SmartDashboard.putData("Auto Chooser", autoChooser);
+
+                if (RobotBase.isSimulation()) {
+                        SmartDashboard.putData("Vision/Sim: Kidnap estimate",
+                                        Commands.runOnce(() -> {
+                                                if (simTruePose != null) {
+                                                        drivetrain.resetPose(simTruePose.transformBy(
+                                                                        new Transform2d(1.0, 0.5,
+                                                                                        Rotation2d.fromDegrees(15))));
+
+                                                }
+                                        }).ignoringDisable(true));
+
+                }
         }
 
         private void configureDefaultCommands() {
@@ -119,13 +156,16 @@ public class RobotContainer {
                 // Face the bot toward the AprilTag
                 driverController.axisGreaterThan(ControllerAxis.RIGHT_TRIGGER, 0.5)
                                 .whileTrue(drivetrain.applyRequest(() -> {
-                                        if (!LimelightHelpers.getTV("limelight"))
+                                        if (!LimelightHelpers.getTV(VisionConstants.CAMERA_2_NAME))
                                                 return aim.withVelocityX(0.0)
                                                                 .withVelocityY(0.0)
                                                                 .withRotationalRate(0.0);
-                                        double fwd = MathUtil.clamp(LimelightHelpers.getTY("limelight") * -0.1, -1.0,
+                                        double fwd = MathUtil.clamp(
+                                                        LimelightHelpers.getTY(VisionConstants.CAMERA_2_NAME) * -0.1,
+                                                        -1.0,
                                                         1.0);
-                                        double rot = MathUtil.clamp(LimelightHelpers.getTX("limelight") * -0.05,
+                                        double rot = MathUtil.clamp(
+                                                        LimelightHelpers.getTX(VisionConstants.CAMERA_2_NAME) * -0.05,
                                                         -MaxAngularRate,
                                                         MaxAngularRate);
                                         return aim.withVelocityX(fwd).withVelocityY(0.0).withRotationalRate(rot);
@@ -183,5 +223,27 @@ public class RobotContainer {
 
         public Command getAutonomousCommand() {
                 return autoChooser.getSelected();
+        }
+
+        // RobotContainer.java
+        private Pose2d simTruePose = null;
+        private final StructPublisher<Pose2d> simTruePosePublisher = NetworkTableInstance.getDefault()
+                        .getStructTopic("Vision/Sim/TruePose", Pose2d.struct).publish();
+
+        /** Call from Robot.simulationPeriodic(). */
+        public void simulationPeriodic() {
+                var state = drivetrain.getState();
+                if (simTruePose == null) {
+                        simTruePose = state.Pose; // start where the estimate starts
+                }
+
+                // Move the true pose by how far the robot moved in the last 20 ms.
+                double dt = 0.02;
+                simTruePose = simTruePose.exp(new Twist2d(
+                                state.Speeds.vxMetersPerSecond * dt,
+                                state.Speeds.vyMetersPerSecond * dt,
+                                state.Speeds.omegaRadiansPerSecond * dt));
+                vision.updateSimulation(simTruePose);
+                simTruePosePublisher.set(simTruePose);
         }
 }
