@@ -117,6 +117,6 @@ public abstract class VisionCamera {
      */
     public abstract boolean isConnected();
 
-    public void addToSimulation(VisionSystemSim sim) {}
+    public void addToSimulation(VisionSystemSim sim) {
+    }
 }
-

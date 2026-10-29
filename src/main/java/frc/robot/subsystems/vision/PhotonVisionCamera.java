@@ -107,9 +107,9 @@ public class PhotonVisionCamera extends VisionCamera {
     public boolean isConnected() {
         return camera.isConnected();
     }
-    
+
     @Override
-    public void addToSimulation(VisionSystemSim sim){
+    public void addToSimulation(VisionSystemSim sim) {
         SimCameraProperties properties = new SimCameraProperties();
         properties.setCalibration(960, 720, Rotation2d.fromDegrees(90)); // resolution and field of view
         properties.setCalibError(0.35, 0.10); // realistic pixel noise

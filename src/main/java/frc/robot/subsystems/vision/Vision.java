@@ -165,5 +165,4 @@ public class Vision extends SubsystemBase {
 
         return VecBuilder.fill(linearStdDev, linearStdDev, angularStdDev);
     }
-
 }
