@@ -16,7 +16,6 @@ import edu.wpi.first.math.geometry.Transform3d;
 import frc.robot.constants.subsystems.VisionConstants;
 import org.photonvision.EstimatedRobotPose;
 import java.util.Optional;
-import org.photonvision.simulation;
 import edu.wpi.first.math.geometry.Rotation2d;
 
 /**
@@ -110,7 +109,7 @@ public class PhotonVisionCamera extends VisionCamera {
     }
     
     @Override
-    public void addToSimulation(VisionSystem sim){
+    public void addToSimulation(VisionSystemSim sim){
         SimCameraProperties properties = new SimCameraProperties();
         properties.setCalibration(960, 720, Rotation2d.fromDegrees(90)); // resolution and field of view
         properties.setCalibError(0.35, 0.10); // realistic pixel noise
