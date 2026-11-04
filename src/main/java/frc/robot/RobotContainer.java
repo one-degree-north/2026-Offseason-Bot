@@ -154,24 +154,6 @@ public class RobotContainer {
                 .whileTrue(intake.runAtVoltsCommand(IntakeConstants.EJECT_VOLTS)
                         .alongWith(indexer.ejectCommand()));
 
-        // Face the bot toward the AprilTag
-        driverController.axisGreaterThan(ControllerAxis.RIGHT_TRIGGER, 0.5)
-                .whileTrue(drivetrain.applyRequest(() -> {
-                    if (!LimelightHelpers.getTV(VisionConstants.CAMERA_2_NAME))
-                        return aim.withVelocityX(0.0)
-                                .withVelocityY(0.0)
-                                .withRotationalRate(0.0);
-                    double fwd = MathUtil.clamp(
-                            LimelightHelpers.getTY(VisionConstants.CAMERA_2_NAME) * -0.1,
-                            -1.0,
-                            1.0);
-                    double rot = MathUtil.clamp(
-                            LimelightHelpers.getTX(VisionConstants.CAMERA_2_NAME) * -0.05,
-                            -MaxAngularRate,
-                            MaxAngularRate);
-                    return aim.withVelocityX(fwd).withVelocityY(0.0).withRotationalRate(rot);
-                }));
-
         // Controller rumble
         hasGamePiece.onTrue(rumblePulse());
 
