@@ -31,8 +31,6 @@ import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
-import frc.robot.constants.ControllerConstants.ControllerAxis;
-import frc.robot.constants.ControllerConstants.ControllerButtons;
 import frc.robot.constants.ControllerConstants.ControllerRumble;
 import frc.robot.constants.subsystems.DrivetrainTunerConstants;
 import frc.robot.constants.subsystems.IndexerConstants;
@@ -62,7 +60,7 @@ public class RobotContainer {
     private final SendableChooser<Command> autoChooser;
 
     // The robot's subsystems and commands are defined here...
-    private final IntakeSubsystem intake = new IntakeSubsystem();
+    private final ___ intake = new ___ // TODO: initialize a new intake subsystem
     public final DrivetrainSubsystem drivetrain = DrivetrainTunerConstants.createDrivetrain();
 
     private final Vision vision = new Vision(
@@ -113,7 +111,8 @@ public class RobotContainer {
     }
 
     private void configureDefaultCommands() {
-        intake.setDefaultCommand(intake.run(() -> intake.runAtVolts(IntakeConstants.HOLD_VOLTS)));
+        // Intake should by default runs at HOLD_VOLTS
+        intake.setDefaultCommand(intake.run(() -> /* TODO: fill in */));
 
         drivetrain.setDefaultCommand(drivetrain.applyRequest(
                 () -> drive.withVelocityX(
@@ -127,31 +126,25 @@ public class RobotContainer {
 
     private void configureBindings() {
         // Low-priority trigger must exclude the high-priority trigger
-        Trigger hasGamePiece = new Trigger(intake::hasGamePiece);
-        Trigger manualEjectButton = driverController.button(ControllerButtons.RIGHT_BUMPER);
-        Trigger manualIntakeButton = driverController.button(ControllerButtons.LEFT_BUMPER)
+        Trigger hasGamePiece = new Trigger(/* TODO: fill in */);
+        Trigger manualEjectButton = driverController.rightBumper();
+        Trigger manualIntakeButton = driverController.leftBumper()
                 .and(manualEjectButton.negate());
         Trigger smartIntakeRequest = driverController
-                .axisGreaterThan(ControllerAxis.LEFT_TRIGGER, 0.5)
+                .leftTrigger()
                 .and(manualIntakeButton.negate())
                 .and(manualEjectButton.negate())
                 .and(hasGamePiece.negate());
 
         // Smart intake
         smartIntakeRequest.whileTrue(intake.runEnd(() -> intake.runAtVolts(IndexerConstants.INDEX_VOLTS), intake::stop)
-                .until(intake::hasGamePiece).deadlineFor(intake.runAtVoltsCommand(IntakeConstants.INTAKE_VOLTS))
-                .withName("Intake smart intaking"));
+                .until(intake::hasGamePiece).withName("Intake smart intaking"));
 
         // Manual intake
-        manualIntakeButton
-                .whileTrue(intake.runAtVoltsCommand(IntakeConstants.INTAKE_VOLTS)
-                        .alongWith(intake.runAtVoltsCommand(IndexerConstants.INDEX_VOLTS))
-                        .withName("Intake manual intaking"));
+        manualIntakeButton.whileTrue(/* TODO: fill in */);
 
         // Manual eject
-        manualEjectButton.whileTrue(intake.runAtVoltsCommand(IntakeConstants.EJECT_VOLTS)
-                .alongWith(intake.runEnd(() -> intake.runAtVolts(IndexerConstants.EJECT_VOLTS), intake::stop)
-                        .withName("Intake ejecting")));
+        manualEjectButton.whileTrue(intake.runAtVoltsCommand(IndexerConstants.EJECT_VOLTS));
 
         // Controller rumble
         hasGamePiece.onTrue(rumblePulse());
@@ -162,25 +155,23 @@ public class RobotContainer {
         RobotModeTriggers.disabled().whileTrue(
                 drivetrain.applyRequest(() -> idle).ignoringDisable(true));
 
-        driverController.button(ControllerButtons.A).whileTrue(drivetrain.applyRequest(() -> brake));
-        driverController.button(ControllerButtons.B).whileTrue(drivetrain.applyRequest(() -> point
-                .withModuleDirection(new Rotation2d(-driverController.getRawAxis(ControllerAxis.LEFT_Y),
-                        -driverController.getRawAxis(ControllerAxis.LEFT_X)))));
+        driverController.a().whileTrue(drivetrain.applyRequest(() -> brake));
+        driverController.b().whileTrue(drivetrain.applyRequest(() -> point
+                .withModuleDirection(new Rotation2d(-driverController.getRightY(), -driverController.getLeftX()))));
 
         // Run SysId routines when holding back/start and X/Y.
         // Note that each routine should be run exactly once in a single log.
-        driverController.button(ControllerButtons.BACK).and(driverController.button(ControllerButtons.Y))
+        driverController.back().and(driverController.y())
                 .whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
-        driverController.button(ControllerButtons.BACK).and(driverController.button(ControllerButtons.X))
+        driverController.back().and(driverController.x())
                 .whileTrue(drivetrain.sysIdDynamic(Direction.kReverse));
-        driverController.button(ControllerButtons.START).and(driverController.button(ControllerButtons.Y))
+        driverController.start().and(driverController.y())
                 .whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
-        driverController.button(ControllerButtons.START).and(driverController.button(ControllerButtons.X))
+        driverController.start().and(driverController.x())
                 .whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
 
         // Reset the field-centric heading on the right joystick press.
-        driverController.button(ControllerButtons.RIGHT_JOYSTICK)
-                .onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));
+        driverController.rightStick().onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));
 
         // Register the swerve telemetry
         drivetrain.registerTelemetry(logger::telemeterize);

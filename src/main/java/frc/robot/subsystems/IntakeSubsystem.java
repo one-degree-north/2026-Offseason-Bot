@@ -19,56 +19,61 @@ import frc.robot.constants.subsystems.IntakeConstants;
 import frc.robot.sensors.BeamBreakSensor;
 
 public class IntakeSubsystem extends SubsystemBase {
-    private final TalonFX m_motor = new TalonFX(IntakeConstants.DEVICE_ID);
-    private final BeamBreakSensor m_beamBreak = new BeamBreakSensor(IndexerConstants.BEAM_BREAK_CHANNEL,
-            IndexerConstants.BEAM_BREAK_DEBOUNCE_SECONDS,
-            IndexerConstants.BEAM_BREAK_FALSE_WHEN_BROKEN);
+    // Motor and sensors
+    private final ___ m_motor = ___ // TODO: initialize a new TalonFX motor
+    private final ___ m_beamBreak = // TODO: initialize a new BeamBreakSensor (tip: check the `sensors/` directory)
 
+    // Simulation
     private final TalonFXSimState m_motorSim = m_motor.getSimState();
     private final DCMotorSim m_plant = new DCMotorSim(
             LinearSystemId.createDCMotorSystem(DCMotor.getKrakenX60(1), IntakeConstants.MOI,
                     IntakeConstants.GEAR_RATIO),
             DCMotor.getKrakenX60(1));
 
-    private final VoltageOut m_voltageOut = new VoltageOut(0.0);
+    // Control request
+    private final ___ m_voltageOut = new ___ // TODO: initialize a new VoltageOut control request
 
     public IntakeSubsystem() {
         var cfg = new TalonFXConfiguration();
-        cfg.Feedback.SensorToMechanismRatio = IntakeConstants.GEAR_RATIO;
-        cfg.MotorOutput.NeutralMode = NeutralModeValue.Coast;
-        cfg.CurrentLimits.StatorCurrentLimit = IntakeConstants.STATOR_CURRENT_LIMIT;
-        cfg.CurrentLimits.SupplyCurrentLimit = IntakeConstants.SUPPLY_CURRENT_LIMIT;
-        cfg.CurrentLimits.SupplyCurrentLowerLimit = IntakeConstants.SUPPLY_CURRENT_LOWER_LIMIT;
-        cfg.CurrentLimits.SupplyCurrentLowerTime = IntakeConstants.SUPPLY_CURRENT_LOWER_TIME;
-        cfg.CurrentLimits.StatorCurrentLimitEnable = true;
-        cfg.CurrentLimits.SupplyCurrentLimitEnable = true;
-        m_motor.getConfigurator().apply(cfg);
+        // TODO: fill in the value from the constants file
+        cfg.Feedback.SensorToMechanismRatio = 
+        cfg.MotorOutput.NeutralMode = 
+        cfg.CurrentLimits.StatorCurrentLimit = 
+        cfg.CurrentLimits.SupplyCurrentLimit = 
+        cfg.CurrentLimits.SupplyCurrentLowerLimit = 
+        cfg.CurrentLimits.SupplyCurrentLowerTime = 
+        cfg.CurrentLimits.StatorCurrentLimitEnable = 
+        cfg.CurrentLimits.SupplyCurrentLimitEnable = 
+
+        // TODO: apply the configuration
     }
 
     public void runAtVolts(double volts) {
-        m_motor.setControl(m_voltageOut.withOutput(volts));
+        // TODO: apply the control
     }
 
     public Command runAtVoltsCommand(double volts) {
         return runEnd(() -> {
-            runAtVolts(volts);
-        }, this::stop).withName("Intake running at " + volts + " volts");
+            // TODO: run the motor at the given volts (tip: look at the method above)
+        }, /* TODO: stop the motor */).withName("Intake running at " + volts + " volts");
     }
 
     public void stop() {
+        // TODO: disable the motor (one line)
         m_motor.disable();
     }
 
     public boolean hasGamePiece() {
-        return m_beamBreak.isBroken();
+        // TODO: return true if the beam break is broken, and false otherwise (one line)
     }
 
     @Override
     public void periodic() {
-        SmartDashboard.putNumber("Intake/Motor/Stator current (A)", m_motor.getStatorCurrent().getValueAsDouble());
-        SmartDashboard.putNumber("Intake/Motor/Supply current (A)", m_motor.getSupplyCurrent().getValueAsDouble());
-        SmartDashboard.putNumber("Intake/Motor/Applied voltage (V)", m_motor.getMotorVoltage().getValueAsDouble());
-        SmartDashboard.putNumber("Intake/Motor/Velocity (mechanism RPS)", m_motor.getVelocity().getValueAsDouble());
+        // Log the motor's stator current, supply current, motor voltage, and velocity
+        SmartDashboard.putNumber("Intake/Motor/Stator current (A)", /* TODO: fill in */);
+        SmartDashboard.putNumber("Intake/Motor/Supply current (A)", * TODO: fill in */);
+        SmartDashboard.putNumber("Intake/Motor/Applied voltage (V)", * TODO: fill in */);
+        SmartDashboard.putNumber("Intake/Motor/Velocity (mechanism RPS)", * TODO: fill in */);
     }
 
     @Override
