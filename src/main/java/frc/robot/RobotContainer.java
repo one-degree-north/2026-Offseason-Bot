@@ -82,9 +82,15 @@ public class RobotContainer {
 
     private final Telemetry logger = new Telemetry(MaxSpeed);
 
-    private final CommandPS5Controller driverController = new CommandPS5Controller(0);
+    private final CommandXboxController driverController;
 
     public RobotContainer() {
+        if (RobotBase.isSimulation() && System.getProperty("os.name").toLowerCase().contains("mac")) {
+            driverController = new MacCommandXboxController(0);
+        } else {
+            driverController = new CommandXboxController(0);
+        }
+
         // Configure the trigger bindings
         configureBindings();
 
