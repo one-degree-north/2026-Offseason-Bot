@@ -39,7 +39,6 @@ import frc.robot.constants.subsystems.IndexerConstants;
 import frc.robot.constants.subsystems.IntakeConstants;
 import frc.robot.constants.subsystems.VisionConstants;
 import frc.robot.subsystems.DrivetrainSubsystem;
-import frc.robot.subsystems.IndexerSubsystem;
 import frc.robot.subsystems.IntakeSubsystem;
 import frc.robot.subsystems.vision.LimelightCamera;
 import frc.robot.subsystems.vision.PhotonVisionCamera;
@@ -64,7 +63,6 @@ public class RobotContainer {
 
     // The robot's subsystems and commands are defined here...
     private final IntakeSubsystem intake = new IntakeSubsystem();
-    private final IndexerSubsystem indexer = new IndexerSubsystem();
     public final DrivetrainSubsystem drivetrain = DrivetrainTunerConstants.createDrivetrain();
 
     private final Vision vision = new Vision(
@@ -115,13 +113,7 @@ public class RobotContainer {
     }
 
     private void configureDefaultCommands() {
-        intake.setDefaultCommand(intake.run(() -> {
-            if (indexer.hasGamePiece()) {
-                intake.runAtVolts(IntakeConstants.HOLD_VOLTS);
-            } else {
-                intake.stop();
-            }
-        }));
+        intake.setDefaultCommand(intake.run(() -> intake.runAtVolts(IntakeConstants.HOLD_VOLTS)));
 
         drivetrain.setDefaultCommand(drivetrain.applyRequest(
                 () -> drive.withVelocityX(
@@ -135,7 +127,7 @@ public class RobotContainer {
 
     private void configureBindings() {
         // Low-priority trigger must exclude the high-priority trigger
-        Trigger hasGamePiece = new Trigger(indexer::hasGamePiece);
+        Trigger hasGamePiece = new Trigger(intake::hasGamePiece);
         Trigger manualEjectButton = driverController.button(ControllerButtons.RIGHT_BUMPER);
         Trigger manualIntakeButton = driverController.button(ControllerButtons.LEFT_BUMPER)
                 .and(manualEjectButton.negate());
@@ -146,19 +138,20 @@ public class RobotContainer {
                 .and(hasGamePiece.negate());
 
         // Smart intake
-        smartIntakeRequest
-                .whileTrue(indexer.intakeCommand()
-                        .deadlineFor(intake.runAtVoltsCommand(IntakeConstants.INTAKE_VOLTS)));
+        smartIntakeRequest.whileTrue(intake.runEnd(() -> intake.runAtVolts(IndexerConstants.INDEX_VOLTS), intake::stop)
+                .until(intake::hasGamePiece).deadlineFor(intake.runAtVoltsCommand(IntakeConstants.INTAKE_VOLTS))
+                .withName("Intake smart intaking"));
 
         // Manual intake
         manualIntakeButton
                 .whileTrue(intake.runAtVoltsCommand(IntakeConstants.INTAKE_VOLTS)
-                        .alongWith(indexer.runAtVoltsCommand(IndexerConstants.INDEX_VOLTS)));
+                        .alongWith(intake.runAtVoltsCommand(IndexerConstants.INDEX_VOLTS))
+                        .withName("Intake manual intaking"));
 
         // Manual eject
-        manualEjectButton
-                .whileTrue(intake.runAtVoltsCommand(IntakeConstants.EJECT_VOLTS)
-                        .alongWith(indexer.ejectCommand()));
+        manualEjectButton.whileTrue(intake.runAtVoltsCommand(IntakeConstants.EJECT_VOLTS)
+                .alongWith(intake.runEnd(() -> intake.runAtVolts(IndexerConstants.EJECT_VOLTS), intake::stop)
+                        .withName("Intake ejecting")));
 
         // Controller rumble
         hasGamePiece.onTrue(rumblePulse());

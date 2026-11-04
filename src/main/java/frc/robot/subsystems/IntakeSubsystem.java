@@ -14,10 +14,15 @@ import edu.wpi.first.wpilibj.simulation.DCMotorSim;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.constants.subsystems.IndexerConstants;
 import frc.robot.constants.subsystems.IntakeConstants;
+import frc.robot.sensors.BeamBreakSensor;
 
 public class IntakeSubsystem extends SubsystemBase {
     private final TalonFX m_motor = new TalonFX(IntakeConstants.DEVICE_ID);
+    private final BeamBreakSensor m_beamBreak = new BeamBreakSensor(IndexerConstants.BEAM_BREAK_CHANNEL,
+            IndexerConstants.BEAM_BREAK_DEBOUNCE_SECONDS,
+            IndexerConstants.BEAM_BREAK_FALSE_WHEN_BROKEN);
 
     private final TalonFXSimState m_motorSim = m_motor.getSimState();
     private final DCMotorSim m_plant = new DCMotorSim(
@@ -52,6 +57,10 @@ public class IntakeSubsystem extends SubsystemBase {
 
     public void stop() {
         m_motor.disable();
+    }
+
+    public boolean hasGamePiece() {
+        return m_beamBreak.isBroken();
     }
 
     @Override
