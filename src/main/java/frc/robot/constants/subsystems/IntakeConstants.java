@@ -30,4 +30,9 @@ public final class IntakeConstants {
     public static final double INTAKE_VOLTS = 8.0;
     public static final double EJECT_VOLTS = -8.0;
     public static final double HOLD_VOLTS = 1.0;
+
+    // Beam break sensor
+    public static final int BEAM_BREAK_CHANNEL = 1;
+    public static final double BEAM_BREAK_DEBOUNCE_SECONDS = 0.15;
+    public static final boolean BEAM_BREAK_FALSE_WHEN_BROKEN = true;
 }
