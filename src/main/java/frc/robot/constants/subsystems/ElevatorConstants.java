@@ -26,11 +26,13 @@ public final class ElevatorConstants {
     public static final int kCascadeFactor = 3;
     public static final double kGearRatio = 10.0;
     public static final double kPulleyCircumferenceInches = 4.0;
+    public static final double drumRadius = kPulleyCircumferenceInches / Math.PI / 2;
 
     public static final double kInchesPerMotorRotation =
         kCascadeFactor
             * (1.0 / kGearRatio)
             * kPulleyCircumferenceInches; 
+    public static final double kCarriageMass = 15.0;
 
     
     // TODO: tape-measure. Used later for soft limits.
