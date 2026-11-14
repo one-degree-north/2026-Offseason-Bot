@@ -35,6 +35,7 @@ import frc.robot.constants.subsystems.DrivetrainTunerConstants;
 import frc.robot.constants.subsystems.IntakeConstants;
 import frc.robot.constants.subsystems.VisionConstants;
 import frc.robot.subsystems.DrivetrainSubsystem;
+import frc.robot.subsystems.ElevatorSubsystem;
 import frc.robot.subsystems.IntakeSubsystem;
 import frc.robot.subsystems.vision.LimelightCamera;
 import frc.robot.subsystems.vision.PhotonVisionCamera;
@@ -73,6 +74,7 @@ public class RobotContainer {
                     VisionConstants.CAM_2_OFFSET,
                     () -> drivetrain.getState().Pose.getRotation().getDegrees(),
                     VisionConstants.CAM_2_TRUST_FACTOR));
+    private final ElevatorSubsystem elevator = new ElevatorSubsystem();
 
     private final Telemetry logger = new Telemetry(MaxSpeed);
 
@@ -139,7 +141,8 @@ public class RobotContainer {
 
         // Manual intake
         manualIntakeButton
-                .whileTrue(intake.runEnd(() -> intake.runAtVolts(IntakeConstants.INTAKE_VOLTS), intake::stop));
+                .whileTrue(intake.runEnd(() -> intake.runAtVolts(IntakeConstants.INTAKE_VOLTS),
+                        intake::stop));
 
         // Manual eject
         manualEjectButton.whileTrue(intake.runAtVoltsCommand(IntakeConstants.EJECT_VOLTS));
@@ -174,6 +177,8 @@ public class RobotContainer {
 
         // Register the swerve telemetry
         drivetrain.registerTelemetry(logger::telemeterize);
+
+        driverController.rightTrigger().whileTrue(elevator.manualJogCommand());
     }
 
     private void setDriverControllerRumble(double intensity) {
