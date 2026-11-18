@@ -41,7 +41,7 @@ public class SlapdownSubsystem extends SubsystemBase {
         cfg.MotionMagic.MotionMagicCruiseVelocity = SlapdownConstants.MOTION_MAGIC_CRUISE_VELOCITY;
         cfg.MotionMagic.MotionMagicAcceleration = SlapdownConstants.MOTION_MAGIC_ACCELERATION;
 
-        // TODO: add soft limits
+        // TODO:: add soft limits
 
         m_motor.getConfigurator().apply(cfg);
 
