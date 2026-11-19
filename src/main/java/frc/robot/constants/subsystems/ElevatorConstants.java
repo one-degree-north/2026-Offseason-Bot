@@ -43,14 +43,14 @@ public final class ElevatorConstants {
 
     //Motion Magic Constant
 
-    public static final double kP = 0.550;
+    public static final double kP = 0.0;
     public static final double kI = 0.0;   // not provided; leave at 0
     public static final double kD = 0.0;
 
-    public static final double kS = 0.0005;
-    public static final double kG = 0.6095;  
-    public static final double kV = 1.193;   
-    public static final double kA = 0.02;    
+    public static final double kS = 0.0;
+    public static final double kG = 0.0;  
+    public static final double kV = 0.0;   
+    public static final double kA = 0.0;    
 
     
     // Motion Magic constraints 
@@ -88,4 +88,7 @@ public final class ElevatorConstants {
 
     public static final double kHomingVoltage = -1.0;
     public static final double kHomingCurrentThresholdAmps = 20.0;
+
+    public static final double kHomingVelocityThreshold = 0.5;
+    public static final double kHomingDebounceSeconds = 0.25;
 }

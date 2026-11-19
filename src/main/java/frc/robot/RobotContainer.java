@@ -26,12 +26,14 @@ import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.button.CommandPS5Controller;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 import frc.robot.constants.ControllerConstants.ControllerRumble;
 import frc.robot.constants.subsystems.DrivetrainTunerConstants;
+import frc.robot.constants.subsystems.ElevatorConstants;
 import frc.robot.constants.subsystems.IntakeConstants;
 import frc.robot.constants.subsystems.VisionConstants;
 import frc.robot.subsystems.DrivetrainSubsystem;
@@ -78,14 +80,15 @@ public class RobotContainer {
 
     private final Telemetry logger = new Telemetry(MaxSpeed);
 
-    private final CommandXboxController driverController;
+    private final CommandPS5Controller driverController = new CommandPS5Controller(0);
 
     public RobotContainer() {
-        if (RobotBase.isSimulation() && System.getProperty("os.name").toLowerCase().contains("mac")) {
-            driverController = new MacCommandXboxController(0);
-        } else {
-            driverController = new CommandXboxController(0);
-        }
+        // if (RobotBase.isSimulation() &&
+        // System.getProperty("os.name").toLowerCase().contains("mac")) {
+        // driverController = new MacCommandXboxController(0);
+        // } else {
+        // driverController = new CommandXboxController(0);
+        // }
 
         // Configure the trigger bindings
         configureBindings();
@@ -125,27 +128,32 @@ public class RobotContainer {
     private void configureBindings() {
         // Low-priority trigger must exclude the high-priority trigger
         Trigger hasGamePiece = new Trigger(intake::hasGamePiece);
-        Trigger manualEjectButton = driverController.rightBumper();
-        Trigger manualIntakeButton = driverController.leftBumper()
-                .and(manualEjectButton.negate());
-        Trigger smartIntakeRequest = driverController
-                .leftTrigger()
-                .and(manualIntakeButton.negate())
-                .and(manualEjectButton.negate())
-                .and(hasGamePiece.negate());
+        //Trigger manualEjectButton = driverController.R1();
+        // Trigger manualIntakeButton = driverController.L1()
+        //         .and(manualEjectButton.negate());
+        // Trigger smartIntakeRequest = driverController
+        //         .L2()
+        //         .and(manualIntakeButton.negate())
+        //         .and(manualEjectButton.negate())
+        //         .and(hasGamePiece.negate());
+        // elevator
+        driverController.triangle().onTrue(elevator.runOnce(elevator::goToL3));
+        driverController.circle().onTrue(elevator.runOnce(elevator::goToL2));
+        driverController.cross().onTrue(elevator.runOnce(elevator::goToL1));
+        driverController.square().onTrue(elevator.runOnce(elevator::goToStowed));
 
         // Smart intake
-        smartIntakeRequest.whileTrue(
-                intake.runEnd(() -> intake.runAtVolts(IntakeConstants.INTAKE_VOLTS), intake::stop)
-                        .until(intake::hasGamePiece).withName("Intake smart intaking"));
+        // smartIntakeRequest.whileTrue(
+        //         intake.runEnd(() -> intake.runAtVolts(IntakeConstants.INTAKE_VOLTS), intake::stop)
+        //                 .until(intake::hasGamePiece).withName("Intake smart intaking"));
 
-        // Manual intake
-        manualIntakeButton
-                .whileTrue(intake.runEnd(() -> intake.runAtVolts(IntakeConstants.INTAKE_VOLTS),
-                        intake::stop));
+        // // Manual intake
+        // manualIntakeButton
+        //         .whileTrue(intake.runEnd(() -> intake.runAtVolts(IntakeConstants.INTAKE_VOLTS),
+        //                 intake::stop));
 
-        // Manual eject
-        manualEjectButton.whileTrue(intake.runAtVoltsCommand(IntakeConstants.EJECT_VOLTS));
+        // // Manual eject
+        // manualEjectButton.whileTrue(intake.runAtVoltsCommand(IntakeConstants.EJECT_VOLTS));
 
         // Controller rumble
         hasGamePiece.onTrue(rumblePulse());
@@ -156,29 +164,30 @@ public class RobotContainer {
         RobotModeTriggers.disabled().whileTrue(
                 drivetrain.applyRequest(() -> idle).ignoringDisable(true));
 
-        driverController.a().whileTrue(drivetrain.applyRequest(() -> brake));
-        driverController.b().whileTrue(drivetrain.applyRequest(() -> point
+        driverController.cross().whileTrue(drivetrain.applyRequest(() -> brake));
+        driverController.circle().whileTrue(drivetrain.applyRequest(() -> point
                 .withModuleDirection(new Rotation2d(-driverController.getRightY(),
                         -driverController.getLeftX()))));
 
         // Run SysId routines when holding back/start and X/Y.
         // Note that each routine should be run exactly once in a single log.
-        driverController.back().and(driverController.y())
+        driverController.create().and(driverController.triangle())
                 .whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
-        driverController.back().and(driverController.x())
+        driverController.create().and(driverController.square())
                 .whileTrue(drivetrain.sysIdDynamic(Direction.kReverse));
-        driverController.start().and(driverController.y())
+        driverController.options().and(driverController.triangle())
                 .whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
-        driverController.start().and(driverController.x())
+        driverController.options().and(driverController.square())
                 .whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
 
         // Reset the field-centric heading on the right joystick press.
-        driverController.rightStick().onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));
+        driverController.L1().onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));
 
         // Register the swerve telemetry
         drivetrain.registerTelemetry(logger::telemeterize);
 
-        driverController.rightTrigger().whileTrue(elevator.manualJogCommand());
+        driverController.R2().whileTrue(elevator.manualJogCommand(ElevatorConstants.kManualJogVolts));
+        driverController.R1().whileTrue(elevator.manualJogCommand(-(ElevatorConstants.kManualJogVolts)));
     }
 
     private void setDriverControllerRumble(double intensity) {
@@ -223,4 +232,5 @@ public class RobotContainer {
         vision.updateSimulation(simTruePose);
         simTruePosePublisher.set(simTruePose);
     }
+
 }
